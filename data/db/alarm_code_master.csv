@@ -1,0 +1,43 @@
+alarm_code,name,category,severity,threshold_text,typical_causes,applicable_eq_types,related_sop_id,section_id,has_documented_action
+TEMP-C-001,챔버 과열 Critical,TEMP,C,챔버 온도 > recipe setpoint + 50°C 또는 절대값 380°C 초과,냉각수 차단|히터 단락|센서 오결선,CVD|DRY|FUR|RTP,SOP-TEMP-001,AC-TEMP-C-001,Y
+TEMP-H-001,챔버 과열 High,TEMP,H,챔버 온도 > recipe setpoint + 20°C (예: setpoint 300°C 기준 320°C 초과),가스 유량 부족으로 인한 발열 누적|냉각수 유량 저하|히터 over-shoot,CVD|DRY|FUR|RTP,SOP-TEMP-001,AC-TEMP-H-001,Y
+TEMP-H-002,히터 Zone 편차 High,TEMP,H,다중 zone furnace에서 zone 간 온도차 > 8°C,zone 히터 단선|TC 노화|보온재 손상,FUR,SOP-TEMP-002,AC-TEMP-H-002,Y
+TEMP-M-001,가열 속도 이상,TEMP,M,ramp rate가 recipe 대비 ±15% 초과 편차,히터 출력 저하|TC 응답 지연,CVD|FUR|RTP|CTR,SOP-TEMP-002,AC-TEMP-M-001,Y
+TEMP-W-001,챔버 저온 Warning,TEMP,W,Idle 상태 챔버 온도 < setpoint - 10°C,대기열 길어짐|유휴 상태에서 자연 냉각,CVD|DRY|FUR,,AC-TEMP-W-001,N
+PRES-C-001,챔버 압력 Critical,PRES,C,process pressure가 setpoint 대비 ±30% 초과,TM 밸브 고착|펌프 정지|MFC 폭주,CVD|PVD|DRY,SOP-PRES-001,AC-PRES-C-001,Y
+PRES-H-001,챔버 압력 High,PRES,H,process pressure가 setpoint 대비 +15% 초과,배기 throttle 동작 불량|가스 과주입,CVD|PVD|DRY,SOP-PRES-001,AC-PRES-H-001,Y
+PRES-M-001,압력 변동 이상,PRES,M,30초 이동표준편차 > setpoint × 5%,가스 라인 진동|throttle 미세진동,CVD|PVD|DRY,SOP-PRES-001,AC-PRES-M-001,Y
+PRES-W-001,압력 센서 응답 지연,PRES,W,setpoint 변경 후 90% 도달 시간 > 7초,바라트론 노화,CVD|PVD|DRY,,AC-PRES-W-001,N
+FLOW-H-001,가스 유량 과다,FLOW,H,MFC 측정값이 setpoint 대비 +10% 초과,MFC 영점 drift|밸브 누설,CVD|DRY|FUR,SOP-FLOW-001,AC-FLOW-H-001,Y
+FLOW-W-001,가스 유량 부족,FLOW,W,MFC 측정값이 setpoint 대비 -10% 미달,가스 잔량 부족|필터 막힘,CVD|DRY|FUR,SOP-FLOW-001,AC-FLOW-W-001,Y
+FLOW-M-001,MFC 응답 이상,FLOW,M,setpoint 변경 후 ±5% 도달 시간 > 3초,MFC controller 노후|통신 지연,CVD|DRY,SOP-FLOW-001,AC-FLOW-M-001,Y
+RF-C-001,RF Reflected Power Critical,RF,C,Reflected / Forward 비율 > 30%,Matcher 단락|전극 contamination,CVD|PVD|DRY,SOP-RF-001,AC-RF-C-001,Y
+RF-H-001,RF Forward Power 편차 High,RF,H,Forward Power가 recipe 대비 ±10% 초과,Generator 출력 저하|케이블 손상,CVD|PVD|DRY,SOP-RF-001,AC-RF-H-001,Y
+RF-M-001,RF Matching 불량,RF,M,Auto-tune 후 reflected > 5% 잔존,부하 변동|tune cap 노후,CVD|PVD|DRY,SOP-RF-002,AC-RF-M-001,Y
+RF-W-001,RF 출력 변동 Warning,RF,W,60초 표준편차 > 평균 × 3%,부하 매칭 미세조정 부족,CVD|PVD|DRY,SOP-RF-002,AC-RF-W-001,Y
+VAC-C-001,챔버 진공 누설 Critical,VAC,C,base pressure 도달 실패 또는 leak rate > 1e-5 Torr·L/s,O-ring 손상|viewport crack|feedthrough 누설,CVD|PVD|DRY|HCI|MCI,SOP-VAC-001,AC-VAC-C-001,Y
+VAC-H-001,진공도 미달 High,VAC,H,base pressure > 5e-6 Torr (목표 1e-6 Torr),펌프 성능 저하|챔버 outgassing,CVD|PVD|DRY|HCI|MCI,SOP-VAC-001,AC-VAC-H-001,Y
+VAC-M-001,진공 펌프 응답 이상,VAC,M,터보 펌프 회전수 안정화 시간 > 정상 +30%,베어링 노후|냉각수 온도 상승,CVD|PVD|DRY,SOP-VAC-002,AC-VAC-M-001,Y
+VAC-W-001,진공 회복 지연,VAC,W,벤트→base pressure 도달 시간이 baseline + 20% 초과,펌프 성능 저하 초기 증상,CVD|PVD|DRY,SOP-VAC-002,AC-VAC-W-001,Y
+GAS-C-001,Toxic Gas 검출 Critical,GAS,C,라인 가스 검출기 농도가 TLV의 50% 초과,배관 누설|VMB 밸브 불완전 잠금,CVD|DRY|FUR,SOP-GAS-001,AC-GAS-C-001,Y
+GAS-H-001,가스 라인 누설 의심 High,GAS,H,MFC 입출력 압력 차 이상 + flow setpoint 불일치,VCR fitting 풀림|라인 부식,CVD|DRY|FUR,SOP-GAS-002,AC-GAS-H-001,Y
+GAS-M-001,가스 압력 이상,GAS,M,공급압력이 spec 대비 ±15% 초과,regulator 노후,CVD|DRY|FUR,SOP-GAS-002,AC-GAS-M-001,Y
+GAS-W-001,가스 잔량 부족 Warning,GAS,W,실린더 잔량 < 15%,정기 교체 임박,CVD|DRY|FUR|RTP,,AC-GAS-W-001,N
+HV-C-001,고전압 Trip Critical,HV,C,Beam current 또는 extraction voltage가 안전 한계 초과로 인터록 작동,arcing|소스 contamination,HCI|MCI|PVD,SOP-HV-001,AC-HV-C-001,Y
+HV-H-001,고전압 변동 High,HV,H,HV 안정화 후 30초 표준편차 > 0.5%,power supply ripple 증가|케이블 절연 열화,HCI|MCI|PVD,SOP-HV-001,AC-HV-H-001,Y
+HV-W-001,고전압 RAMP 지연,HV,W,0→setpoint ramp time이 baseline 대비 +20%,HV PS 노후,HCI|MCI|PVD,,AC-HV-W-001,N
+DOSE-C-001,Dose 측정값 범위 초과 Critical,DOSE,C,측정 dose가 recipe spec의 ±5% 초과,Faraday cup 오염|beam profile shift,HCI|MCI,SOP-DOSE-001,AC-DOSE-C-001,Y
+DOSE-H-001,Dose 균일도 High,DOSE,H,wafer 내 dose 균일도 (1σ) > 1.5%,beam scan profile drift|Faraday 측정 오차,HCI|MCI,SOP-DOSE-001,AC-DOSE-H-001,Y
+DOSE-W-001,Dose 측정 지연 Warning,DOSE,W,post-implant 측정 완료 시간 > baseline + 5초,measurement queue 적체,HCI|MCI,,AC-DOSE-W-001,N
+CHEM-H-001,케미컬 농도 이상,CHEM,H,titrator 측정 농도가 spec ±2% 초과,mixing 불량|센서 calibration 노후,WET|POL|CLN,SOP-CHEM-001,AC-CHEM-H-001,Y
+CHEM-W-001,케미컬 보충 필요 Warning,CHEM,W,탱크 잔량 < 20%,사용량 증가,WET|POL|CLN|CTR,SOP-CHEM-001,AC-CHEM-W-001,Y
+COMM-H-001,EAP 통신 단절 High,COMM,H,EAP-호스트 link 60초 이상 단절,네트워크 스위치 이슈|EAP 프로세스 hang,CVD|PVD|DRY|WET|SCN|CTR|FUR|RTP|HCI|MCI|POL|CLN|MES|INS,SOP-COMM-001,AC-COMM-H-001,Y
+COMM-M-001,SECS/GEM 응답 지연,COMM,M,S6F11 응답 시간 > 5초,host load 증가|buffer overflow,CVD|PVD|DRY|WET|SCN|CTR|FUR|RTP|HCI|MCI|POL|CLN|MES|INS,SOP-COMM-001,AC-COMM-M-001,Y
+COMM-W-001,호스트 통신 재시도 Warning,COMM,W,T3 timeout 발생 (재시도로 복구됨),네트워크 미세 지연,CVD|PVD|DRY|WET|SCN|CTR|FUR|RTP|HCI|MCI|POL|CLN|MES|INS,SOP-COMM-001,AC-COMM-W-001,Y
+COMM-W-002,센서 통신 일시 단절,COMM,W,특정 SVID 데이터 결손 < 3초,DAQ 모듈 jitter,CVD|PVD|DRY|FUR|RTP|HCI|MCI,,AC-COMM-W-002,N
+REC-H-001,Recipe 다운로드 실패 High,REC,H,MES → 설비 recipe 다운로드 3회 연속 실패,recipe checksum 불일치|권한 만료,CVD|PVD|DRY|WET|SCN|CTR|FUR|RTP|HCI|MCI|POL|CLN,SOP-REC-001,AC-REC-H-001,Y
+REC-M-001,Recipe 파라미터 검증 실패,REC,M,파라미터 spec 범위 초과 또는 필수 필드 누락,recipe 편집 오류,CVD|PVD|DRY|WET|SCN|CTR|FUR|RTP|HCI|MCI|POL|CLN,SOP-REC-001,AC-REC-M-001,Y
+REC-W-001,Recipe 버전 불일치 Warning,REC,W,설비 실행 recipe 버전 ≠ MES 등록 latest version,버전 동기화 지연,CVD|PVD|DRY|WET|SCN|CTR|FUR|RTP|HCI|MCI|POL|CLN,SOP-REC-001,AC-REC-W-001,Y
+MECH-H-001,로봇 핸들링 오류 High,MECH,H,EFEM 로봇 wafer mapping 또는 transfer 실패,wafer 위치 이상|vacuum chuck 흡착 불량,CVD|PVD|DRY|WET|SCN|CTR|HCI|MCI|POL|CLN|MES|INS,SOP-MECH-001,AC-MECH-H-001,Y
+MECH-M-001,슬릿밸브 동작 이상,MECH,M,open/close 시간 > spec + 0.5초,공압 라인 압력 저하|센서 노후,CVD|PVD|DRY|HCI|MCI,SOP-MECH-002,AC-MECH-M-001,Y
+MECH-W-001,진동 센서 경고,MECH,W,베어링 진동 RMS > baseline × 1.5,베어링 마모 초기,CVD|PVD|DRY|POL,,AC-MECH-W-001,N

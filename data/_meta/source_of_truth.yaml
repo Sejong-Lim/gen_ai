@@ -1,0 +1,1191 @@
+# =============================================================================
+# FDC-Monitoring AI System — Source of Truth
+# -----------------------------------------------------------------------------
+# 본 파일은 모든 매뉴얼/DB/VOC/평가셋의 단일 진실 공급원(Single Source of Truth)이다.
+# - 모든 ID, 명명 규칙, 관계 매핑이 여기서 결정된다.
+# - 매뉴얼·VOC·평가셋의 citation은 본 파일에 정의된 section_id를 참조해야 한다.
+# - scripts/build_db.py 와 scripts/validate_integrity.py 가 이 파일을 읽는다.
+# =============================================================================
+
+meta:
+  system_name: "FDC-Monitoring AI System"
+  version: "1.0.0"
+  generated_for: "VOC Response Agent — 3-day demo"
+  generation_seed: 20260515
+  current_date: "2026-05-15"
+
+# -----------------------------------------------------------------------------
+# 1. 공정 (Process)
+# -----------------------------------------------------------------------------
+processes:
+  - id: THIN
+    name: 박막증착
+    description: CVD/PVD를 통한 박막 형성 공정
+  - id: PHOTO
+    name: 포토
+    description: 노광/현상을 통한 패턴 형성
+  - id: ETCH
+    name: 식각
+    description: 노광 패턴에 따른 박막 제거
+  - id: DIFF
+    name: 확산
+    description: 열처리를 통한 도펀트 확산/산화
+  - id: IMP
+    name: 이온주입
+    description: 이온 가속을 통한 도핑
+  - id: CMP
+    name: 화학기계연마
+    description: 웨이퍼 표면 평탄화
+  - id: CLN
+    name: 세정
+    description: 웨이퍼 세정/스트립
+  - id: MTL
+    name: 계측/검사
+    description: 박막두께/CD/결함 검사
+
+# -----------------------------------------------------------------------------
+# 2. 설비 타입 (Equipment Type)
+#    - capabilities: 해당 설비에서 발생 가능한 알람 카테고리
+# -----------------------------------------------------------------------------
+equipment_types:
+  - id: CVD
+    process: THIN
+    full_name: "PECVD/LPCVD Chamber"
+    capabilities: [TEMP, PRES, FLOW, RF, VAC, GAS, COMM, REC, MECH]
+  - id: PVD
+    process: THIN
+    full_name: "Sputter/PVD Chamber"
+    capabilities: [PRES, RF, VAC, HV, COMM, REC, MECH]
+  - id: DRY
+    process: ETCH
+    full_name: "Dry Etcher (RIE/ICP)"
+    capabilities: [TEMP, PRES, FLOW, RF, VAC, GAS, COMM, REC, MECH]
+  - id: WET
+    process: ETCH
+    full_name: "Wet Etch/Cleaner Bench"
+    capabilities: [CHEM, COMM, REC, MECH]
+  - id: SCN
+    process: PHOTO
+    full_name: "Lithography Scanner"
+    capabilities: [COMM, REC, MECH]
+  - id: CTR
+    process: PHOTO
+    full_name: "Coater/Developer Track"
+    capabilities: [TEMP, CHEM, COMM, REC, MECH]
+  - id: FUR
+    process: DIFF
+    full_name: "Vertical/Horizontal Furnace"
+    capabilities: [TEMP, GAS, COMM, REC, MECH]
+  - id: RTP
+    process: DIFF
+    full_name: "Rapid Thermal Processor"
+    capabilities: [TEMP, GAS, COMM, REC, MECH]
+  - id: HCI
+    process: IMP
+    full_name: "High Current Implanter"
+    capabilities: [VAC, HV, DOSE, COMM, REC, MECH]
+  - id: MCI
+    process: IMP
+    full_name: "Medium Current Implanter"
+    capabilities: [VAC, HV, DOSE, COMM, REC, MECH]
+  - id: POL
+    process: CMP
+    full_name: "CMP Polisher"
+    capabilities: [CHEM, COMM, REC, MECH]
+  - id: CLN
+    process: CLN
+    full_name: "Wet Cleaner"
+    capabilities: [CHEM, COMM, REC, MECH]
+  - id: MES
+    process: MTL
+    full_name: "Thickness/CD Measurement"
+    capabilities: [COMM, REC, MECH]
+  - id: INS
+    process: MTL
+    full_name: "Defect/Overlay Inspector"
+    capabilities: [COMM, REC, MECH]
+
+# -----------------------------------------------------------------------------
+# 3. 심각도 (Severity)
+# -----------------------------------------------------------------------------
+severities:
+  - id: C
+    name: Critical
+    response_time_min: 5
+    escalation_required: true
+    auto_stop_equipment: true
+    description: 즉시 설비 정지 및 escalation. EHS 영향 가능.
+  - id: H
+    name: High
+    response_time_min: 15
+    escalation_required: false
+    auto_stop_equipment: true
+    description: 설비 자동 hold. 운영 엔지니어 1차 대응.
+  - id: M
+    name: Medium
+    response_time_min: 60
+    escalation_required: false
+    auto_stop_equipment: false
+    description: 진행은 계속, 다음 lot 시작 전 확인 권장.
+  - id: W
+    name: Warning
+    response_time_min: 240
+    escalation_required: false
+    auto_stop_equipment: false
+    description: 경고성 표시. 추이 모니터링 권장.
+  - id: I
+    name: Info
+    response_time_min: null
+    escalation_required: false
+    auto_stop_equipment: false
+    description: 정보성 이벤트. 조치 불필요.
+
+# -----------------------------------------------------------------------------
+# 4. 알람 카테고리 (Alarm Category)
+# -----------------------------------------------------------------------------
+alarm_categories:
+  - id: TEMP
+    name: 온도
+    applies_to_eq_types: [CVD, DRY, CTR, FUR, RTP]
+  - id: PRES
+    name: 압력
+    applies_to_eq_types: [CVD, PVD, DRY]
+  - id: FLOW
+    name: 가스유량
+    applies_to_eq_types: [CVD, DRY, FUR]
+  - id: RF
+    name: RF
+    applies_to_eq_types: [CVD, PVD, DRY]
+  - id: VAC
+    name: 진공
+    applies_to_eq_types: [CVD, PVD, DRY, HCI, MCI]
+  - id: GAS
+    name: 가스(누설/잔량)
+    applies_to_eq_types: [CVD, DRY, FUR, RTP]
+  - id: HV
+    name: 고전압
+    applies_to_eq_types: [PVD, HCI, MCI]
+  - id: DOSE
+    name: Dose
+    applies_to_eq_types: [HCI, MCI]
+  - id: CHEM
+    name: 케미컬
+    applies_to_eq_types: [WET, CTR, POL, CLN]
+  - id: COMM
+    name: 통신
+    applies_to_eq_types: [CVD, PVD, DRY, WET, SCN, CTR, FUR, RTP, HCI, MCI, POL, CLN, MES, INS]
+  - id: REC
+    name: Recipe
+    applies_to_eq_types: [CVD, PVD, DRY, WET, SCN, CTR, FUR, RTP, HCI, MCI, POL, CLN, MES, INS]
+  - id: MECH
+    name: 기계동작
+    applies_to_eq_types: [CVD, PVD, DRY, WET, SCN, CTR, FUR, RTP, HCI, MCI, POL, CLN, MES, INS]
+
+# -----------------------------------------------------------------------------
+# 5. SOP (Standard Operating Procedure)
+#    - section_id 는 troubleshooting_guide.md 의 anchor 와 일치한다.
+# -----------------------------------------------------------------------------
+sops:
+  - id: SOP-TEMP-001
+    section_id: SOP-TEMP-001
+    title: 챔버 과열 대응
+    related_alarm_codes: [TEMP-C-001, TEMP-H-001]
+    summary: "챔버 온도가 임계치를 초과한 경우의 단계별 조치."
+  - id: SOP-TEMP-002
+    section_id: SOP-TEMP-002
+    title: 히터 온도 편차 대응
+    related_alarm_codes: [TEMP-H-002, TEMP-M-001]
+    summary: "다중 zone 히터의 zone 간 편차가 허용범위를 초과한 경우."
+  - id: SOP-PRES-001
+    section_id: SOP-PRES-001
+    title: 챔버 압력 이상 대응
+    related_alarm_codes: [PRES-C-001, PRES-H-001, PRES-M-001]
+    summary: "공정 압력이 setpoint에서 이탈한 경우."
+  - id: SOP-FLOW-001
+    section_id: SOP-FLOW-001
+    title: 가스 유량 이상 대응
+    related_alarm_codes: [FLOW-H-001, FLOW-W-001, FLOW-M-001]
+    summary: "MFC 측정 유량이 recipe setpoint를 벗어난 경우."
+  - id: SOP-RF-001
+    section_id: SOP-RF-001
+    title: RF 출력 이상 대응
+    related_alarm_codes: [RF-C-001, RF-H-001, RF-W-001]
+    summary: "RF Forward / Reflected Power 이상시 단계별 조치."
+  - id: SOP-RF-002
+    section_id: SOP-RF-002
+    title: RF Matching 불량 조정
+    related_alarm_codes: [RF-M-001]
+    summary: "RF Matcher tune/load position 자동 조정 실패 대응."
+  - id: SOP-VAC-001
+    section_id: SOP-VAC-001
+    title: 챔버 진공 누설 대응
+    related_alarm_codes: [VAC-C-001, VAC-H-001]
+    summary: "진공도 미달/leak rate 초과 시 누설 위치 추정 및 격리."
+  - id: SOP-VAC-002
+    section_id: SOP-VAC-002
+    title: 진공 펌프 이상 점검
+    related_alarm_codes: [VAC-M-001, VAC-W-001]
+    summary: "터보 펌프/드라이 펌프 응답 이상 시 점검 절차."
+  - id: SOP-COMM-001
+    section_id: SOP-COMM-001
+    title: 호스트 통신 단절 대응
+    related_alarm_codes: [COMM-H-001, COMM-M-001, COMM-W-001]
+    summary: "EAP/SECS-GEM 연결 단절 시 재연결 및 대체 운영."
+  - id: SOP-REC-001
+    section_id: SOP-REC-001
+    title: Recipe 다운로드 실패 대응
+    related_alarm_codes: [REC-H-001, REC-M-001]
+    summary: "MES → 설비 recipe 다운로드 실패 시 재시도 절차."
+  - id: SOP-DOSE-001
+    section_id: SOP-DOSE-001
+    title: Dose 측정 이상 대응
+    related_alarm_codes: [DOSE-C-001, DOSE-H-001]
+    summary: "이온주입 dose 값이 spec을 벗어났을 때 calibration 절차."
+  - id: SOP-GAS-001
+    section_id: SOP-GAS-001
+    title: Toxic Gas 검출 대응 (EHS)
+    related_alarm_codes: [GAS-C-001]
+    summary: "유독가스 검출 시 즉시 대응 — EHS 절차 연계."
+  - id: SOP-GAS-002
+    section_id: SOP-GAS-002
+    title: 가스 라인 누설 의심 대응
+    related_alarm_codes: [GAS-H-001, GAS-M-001]
+    summary: "MFC 입출력 압력 차로 누설 의심 시 격리·검사."
+  - id: SOP-HV-001
+    section_id: SOP-HV-001
+    title: 고전압 Trip 대응
+    related_alarm_codes: [HV-C-001, HV-H-001]
+    summary: "이온주입/PVD의 HV trip 발생 시 재기동 절차."
+  - id: SOP-CHEM-001
+    section_id: SOP-CHEM-001
+    title: 케미컬 농도 관리
+    related_alarm_codes: [CHEM-H-001, CHEM-W-001]
+    summary: "케미컬 농도 이상/잔량 부족 시 보충 및 측정."
+  - id: SOP-MECH-001
+    section_id: SOP-MECH-001
+    title: 로봇 핸들링 오류 대응
+    related_alarm_codes: [MECH-H-001]
+    summary: "EFEM/이송로봇 오류 시 reset 및 wafer 회수."
+  - id: SOP-MECH-002
+    section_id: SOP-MECH-002
+    title: 슬릿밸브 동작 이상 점검
+    related_alarm_codes: [MECH-M-001]
+    summary: "슬릿밸브 open/close 응답 지연 시 공압·센서 점검."
+  - id: SOP-ESC-001
+    section_id: SOP-ESC-001
+    title: 벤더 Escalation 절차
+    related_alarm_codes: []
+    summary: "내부 절차로 해결 불가 시 벤더 기술지원 티켓 발행 경로."
+  - id: SOP-ESC-002
+    section_id: SOP-ESC-002
+    title: 야간/주말 비상 대응
+    related_alarm_codes: []
+    summary: "정규시간 외 Critical 알람 발생 시 호출 트리."
+
+# -----------------------------------------------------------------------------
+# 6. 알람 코드 (Alarm Code Master) — 40 codes
+#    - section_id 는 alarm_code_guide.md 의 anchor 와 일치한다.
+#    - related_sop_id 가 null 이면 alarm_code_guide 내에서 단독 설명.
+#    - has_documented_action=false 인 코드는 의도적 KB 결함(edge case).
+# -----------------------------------------------------------------------------
+alarm_codes:
+  # ---- TEMP (5) ----
+  - code: TEMP-C-001
+    section_id: AC-TEMP-C-001
+    name: 챔버 과열 Critical
+    category: TEMP
+    severity: C
+    threshold_text: "챔버 온도 > recipe setpoint + 50°C 또는 절대값 380°C 초과"
+    typical_causes: ["냉각수 차단", "히터 단락", "센서 오결선"]
+    applicable_eq_types: [CVD, DRY, FUR, RTP]
+    related_sop_id: SOP-TEMP-001
+    has_documented_action: true
+  - code: TEMP-H-001
+    section_id: AC-TEMP-H-001
+    name: 챔버 과열 High
+    category: TEMP
+    severity: H
+    threshold_text: "챔버 온도 > recipe setpoint + 20°C (예: setpoint 300°C 기준 320°C 초과)"
+    typical_causes: ["가스 유량 부족으로 인한 발열 누적", "냉각수 유량 저하", "히터 over-shoot"]
+    applicable_eq_types: [CVD, DRY, FUR, RTP]
+    related_sop_id: SOP-TEMP-001
+    has_documented_action: true
+  - code: TEMP-H-002
+    section_id: AC-TEMP-H-002
+    name: 히터 Zone 편차 High
+    category: TEMP
+    severity: H
+    threshold_text: "다중 zone furnace에서 zone 간 온도차 > 8°C"
+    typical_causes: ["zone 히터 단선", "TC 노화", "보온재 손상"]
+    applicable_eq_types: [FUR]
+    related_sop_id: SOP-TEMP-002
+    has_documented_action: true
+  - code: TEMP-M-001
+    section_id: AC-TEMP-M-001
+    name: 가열 속도 이상
+    category: TEMP
+    severity: M
+    threshold_text: "ramp rate가 recipe 대비 ±15% 초과 편차"
+    typical_causes: ["히터 출력 저하", "TC 응답 지연"]
+    applicable_eq_types: [CVD, FUR, RTP, CTR]
+    related_sop_id: SOP-TEMP-002
+    has_documented_action: true
+  - code: TEMP-W-001
+    section_id: AC-TEMP-W-001
+    name: 챔버 저온 Warning
+    category: TEMP
+    severity: W
+    threshold_text: "Idle 상태 챔버 온도 < setpoint - 10°C"
+    typical_causes: ["대기열 길어짐", "유휴 상태에서 자연 냉각"]
+    applicable_eq_types: [CVD, DRY, FUR]
+    related_sop_id: null
+    has_documented_action: false  # KB orphan — edge case 평가용
+
+  # ---- PRES (4) ----
+  - code: PRES-C-001
+    section_id: AC-PRES-C-001
+    name: 챔버 압력 Critical
+    category: PRES
+    severity: C
+    threshold_text: "process pressure가 setpoint 대비 ±30% 초과"
+    typical_causes: ["TM 밸브 고착", "펌프 정지", "MFC 폭주"]
+    applicable_eq_types: [CVD, PVD, DRY]
+    related_sop_id: SOP-PRES-001
+    has_documented_action: true
+  - code: PRES-H-001
+    section_id: AC-PRES-H-001
+    name: 챔버 압력 High
+    category: PRES
+    severity: H
+    threshold_text: "process pressure가 setpoint 대비 +15% 초과"
+    typical_causes: ["배기 throttle 동작 불량", "가스 과주입"]
+    applicable_eq_types: [CVD, PVD, DRY]
+    related_sop_id: SOP-PRES-001
+    has_documented_action: true
+  - code: PRES-M-001
+    section_id: AC-PRES-M-001
+    name: 압력 변동 이상
+    category: PRES
+    severity: M
+    threshold_text: "30초 이동표준편차 > setpoint × 5%"
+    typical_causes: ["가스 라인 진동", "throttle 미세진동"]
+    applicable_eq_types: [CVD, PVD, DRY]
+    related_sop_id: SOP-PRES-001
+    has_documented_action: true
+  - code: PRES-W-001
+    section_id: AC-PRES-W-001
+    name: 압력 센서 응답 지연
+    category: PRES
+    severity: W
+    threshold_text: "setpoint 변경 후 90% 도달 시간 > 7초"
+    typical_causes: ["바라트론 노화"]
+    applicable_eq_types: [CVD, PVD, DRY]
+    related_sop_id: null
+    has_documented_action: false  # KB orphan
+
+  # ---- FLOW (3) ----
+  - code: FLOW-H-001
+    section_id: AC-FLOW-H-001
+    name: 가스 유량 과다
+    category: FLOW
+    severity: H
+    threshold_text: "MFC 측정값이 setpoint 대비 +10% 초과"
+    typical_causes: ["MFC 영점 drift", "밸브 누설"]
+    applicable_eq_types: [CVD, DRY, FUR]
+    related_sop_id: SOP-FLOW-001
+    has_documented_action: true
+  - code: FLOW-W-001
+    section_id: AC-FLOW-W-001
+    name: 가스 유량 부족
+    category: FLOW
+    severity: W
+    threshold_text: "MFC 측정값이 setpoint 대비 -10% 미달"
+    typical_causes: ["가스 잔량 부족", "필터 막힘"]
+    applicable_eq_types: [CVD, DRY, FUR]
+    related_sop_id: SOP-FLOW-001
+    has_documented_action: true
+  - code: FLOW-M-001
+    section_id: AC-FLOW-M-001
+    name: MFC 응답 이상
+    category: FLOW
+    severity: M
+    threshold_text: "setpoint 변경 후 ±5% 도달 시간 > 3초"
+    typical_causes: ["MFC controller 노후", "통신 지연"]
+    applicable_eq_types: [CVD, DRY]
+    related_sop_id: SOP-FLOW-001
+    has_documented_action: true
+
+  # ---- RF (4) ----
+  - code: RF-C-001
+    section_id: AC-RF-C-001
+    name: RF Reflected Power Critical
+    category: RF
+    severity: C
+    threshold_text: "Reflected / Forward 비율 > 30%"
+    typical_causes: ["Matcher 단락", "전극 contamination"]
+    applicable_eq_types: [CVD, PVD, DRY]
+    related_sop_id: SOP-RF-001
+    has_documented_action: true
+  - code: RF-H-001
+    section_id: AC-RF-H-001
+    name: RF Forward Power 편차 High
+    category: RF
+    severity: H
+    threshold_text: "Forward Power가 recipe 대비 ±10% 초과"
+    typical_causes: ["Generator 출력 저하", "케이블 손상"]
+    applicable_eq_types: [CVD, PVD, DRY]
+    related_sop_id: SOP-RF-001
+    has_documented_action: true
+  - code: RF-M-001
+    section_id: AC-RF-M-001
+    name: RF Matching 불량
+    category: RF
+    severity: M
+    threshold_text: "Auto-tune 후 reflected > 5% 잔존"
+    typical_causes: ["부하 변동", "tune cap 노후"]
+    applicable_eq_types: [CVD, PVD, DRY]
+    related_sop_id: SOP-RF-002
+    has_documented_action: true
+  - code: RF-W-001
+    section_id: AC-RF-W-001
+    name: RF 출력 변동 Warning
+    category: RF
+    severity: W
+    threshold_text: "60초 표준편차 > 평균 × 3%"
+    typical_causes: ["부하 매칭 미세조정 부족"]
+    applicable_eq_types: [CVD, PVD, DRY]
+    related_sop_id: SOP-RF-002
+    has_documented_action: true
+
+  # ---- VAC (4) ----
+  - code: VAC-C-001
+    section_id: AC-VAC-C-001
+    name: 챔버 진공 누설 Critical
+    category: VAC
+    severity: C
+    threshold_text: "base pressure 도달 실패 또는 leak rate > 1e-5 Torr·L/s"
+    typical_causes: ["O-ring 손상", "viewport crack", "feedthrough 누설"]
+    applicable_eq_types: [CVD, PVD, DRY, HCI, MCI]
+    related_sop_id: SOP-VAC-001
+    has_documented_action: true
+  - code: VAC-H-001
+    section_id: AC-VAC-H-001
+    name: 진공도 미달 High
+    category: VAC
+    severity: H
+    threshold_text: "base pressure > 5e-6 Torr (목표 1e-6 Torr)"
+    typical_causes: ["펌프 성능 저하", "챔버 outgassing"]
+    applicable_eq_types: [CVD, PVD, DRY, HCI, MCI]
+    related_sop_id: SOP-VAC-001
+    has_documented_action: true
+  - code: VAC-M-001
+    section_id: AC-VAC-M-001
+    name: 진공 펌프 응답 이상
+    category: VAC
+    severity: M
+    threshold_text: "터보 펌프 회전수 안정화 시간 > 정상 +30%"
+    typical_causes: ["베어링 노후", "냉각수 온도 상승"]
+    applicable_eq_types: [CVD, PVD, DRY]
+    related_sop_id: SOP-VAC-002
+    has_documented_action: true
+  - code: VAC-W-001
+    section_id: AC-VAC-W-001
+    name: 진공 회복 지연
+    category: VAC
+    severity: W
+    threshold_text: "벤트→base pressure 도달 시간이 baseline + 20% 초과"
+    typical_causes: ["펌프 성능 저하 초기 증상"]
+    applicable_eq_types: [CVD, PVD, DRY]
+    related_sop_id: SOP-VAC-002
+    has_documented_action: true
+
+  # ---- GAS (4) ----
+  - code: GAS-C-001
+    section_id: AC-GAS-C-001
+    name: Toxic Gas 검출 Critical
+    category: GAS
+    severity: C
+    threshold_text: "라인 가스 검출기 농도가 TLV의 50% 초과"
+    typical_causes: ["배관 누설", "VMB 밸브 불완전 잠금"]
+    applicable_eq_types: [CVD, DRY, FUR]
+    related_sop_id: SOP-GAS-001
+    has_documented_action: true
+  - code: GAS-H-001
+    section_id: AC-GAS-H-001
+    name: 가스 라인 누설 의심 High
+    category: GAS
+    severity: H
+    threshold_text: "MFC 입출력 압력 차 이상 + flow setpoint 불일치"
+    typical_causes: ["VCR fitting 풀림", "라인 부식"]
+    applicable_eq_types: [CVD, DRY, FUR]
+    related_sop_id: SOP-GAS-002
+    has_documented_action: true
+  - code: GAS-M-001
+    section_id: AC-GAS-M-001
+    name: 가스 압력 이상
+    category: GAS
+    severity: M
+    threshold_text: "공급압력이 spec 대비 ±15% 초과"
+    typical_causes: ["regulator 노후"]
+    applicable_eq_types: [CVD, DRY, FUR]
+    related_sop_id: SOP-GAS-002
+    has_documented_action: true
+  - code: GAS-W-001
+    section_id: AC-GAS-W-001
+    name: 가스 잔량 부족 Warning
+    category: GAS
+    severity: W
+    threshold_text: "실린더 잔량 < 15%"
+    typical_causes: ["정기 교체 임박"]
+    applicable_eq_types: [CVD, DRY, FUR, RTP]
+    related_sop_id: null
+    has_documented_action: false  # FAQ로 위임
+
+  # ---- HV (3) ----
+  - code: HV-C-001
+    section_id: AC-HV-C-001
+    name: 고전압 Trip Critical
+    category: HV
+    severity: C
+    threshold_text: "Beam current 또는 extraction voltage가 안전 한계 초과로 인터록 작동"
+    typical_causes: ["arcing", "소스 contamination"]
+    applicable_eq_types: [HCI, MCI, PVD]
+    related_sop_id: SOP-HV-001
+    has_documented_action: true
+  - code: HV-H-001
+    section_id: AC-HV-H-001
+    name: 고전압 변동 High
+    category: HV
+    severity: H
+    threshold_text: "HV 안정화 후 30초 표준편차 > 0.5%"
+    typical_causes: ["power supply ripple 증가", "케이블 절연 열화"]
+    applicable_eq_types: [HCI, MCI, PVD]
+    related_sop_id: SOP-HV-001
+    has_documented_action: true
+  - code: HV-W-001
+    section_id: AC-HV-W-001
+    name: 고전압 RAMP 지연
+    category: HV
+    severity: W
+    threshold_text: "0→setpoint ramp time이 baseline 대비 +20%"
+    typical_causes: ["HV PS 노후"]
+    applicable_eq_types: [HCI, MCI, PVD]
+    related_sop_id: null
+    has_documented_action: false  # KB orphan
+
+  # ---- DOSE (3) ----
+  - code: DOSE-C-001
+    section_id: AC-DOSE-C-001
+    name: Dose 측정값 범위 초과 Critical
+    category: DOSE
+    severity: C
+    threshold_text: "측정 dose가 recipe spec의 ±5% 초과"
+    typical_causes: ["Faraday cup 오염", "beam profile shift"]
+    applicable_eq_types: [HCI, MCI]
+    related_sop_id: SOP-DOSE-001
+    has_documented_action: true
+  - code: DOSE-H-001
+    section_id: AC-DOSE-H-001
+    name: Dose 균일도 High
+    category: DOSE
+    severity: H
+    threshold_text: "wafer 내 dose 균일도 (1σ) > 1.5%"
+    typical_causes: ["beam scan profile drift", "Faraday 측정 오차"]
+    applicable_eq_types: [HCI, MCI]
+    related_sop_id: SOP-DOSE-001
+    has_documented_action: true
+  - code: DOSE-W-001
+    section_id: AC-DOSE-W-001
+    name: Dose 측정 지연 Warning
+    category: DOSE
+    severity: W
+    threshold_text: "post-implant 측정 완료 시간 > baseline + 5초"
+    typical_causes: ["measurement queue 적체"]
+    applicable_eq_types: [HCI, MCI]
+    related_sop_id: null
+    has_documented_action: false  # KB orphan
+
+  # ---- CHEM (2) ----
+  - code: CHEM-H-001
+    section_id: AC-CHEM-H-001
+    name: 케미컬 농도 이상
+    category: CHEM
+    severity: H
+    threshold_text: "titrator 측정 농도가 spec ±2% 초과"
+    typical_causes: ["mixing 불량", "센서 calibration 노후"]
+    applicable_eq_types: [WET, POL, CLN]
+    related_sop_id: SOP-CHEM-001
+    has_documented_action: true
+  - code: CHEM-W-001
+    section_id: AC-CHEM-W-001
+    name: 케미컬 보충 필요 Warning
+    category: CHEM
+    severity: W
+    threshold_text: "탱크 잔량 < 20%"
+    typical_causes: ["사용량 증가"]
+    applicable_eq_types: [WET, POL, CLN, CTR]
+    related_sop_id: SOP-CHEM-001
+    has_documented_action: true
+
+  # ---- COMM (4) ----
+  - code: COMM-H-001
+    section_id: AC-COMM-H-001
+    name: EAP 통신 단절 High
+    category: COMM
+    severity: H
+    threshold_text: "EAP-호스트 link 60초 이상 단절"
+    typical_causes: ["네트워크 스위치 이슈", "EAP 프로세스 hang"]
+    applicable_eq_types: [CVD, PVD, DRY, WET, SCN, CTR, FUR, RTP, HCI, MCI, POL, CLN, MES, INS]
+    related_sop_id: SOP-COMM-001
+    has_documented_action: true
+  - code: COMM-M-001
+    section_id: AC-COMM-M-001
+    name: SECS/GEM 응답 지연
+    category: COMM
+    severity: M
+    threshold_text: "S6F11 응답 시간 > 5초"
+    typical_causes: ["host load 증가", "buffer overflow"]
+    applicable_eq_types: [CVD, PVD, DRY, WET, SCN, CTR, FUR, RTP, HCI, MCI, POL, CLN, MES, INS]
+    related_sop_id: SOP-COMM-001
+    has_documented_action: true
+  - code: COMM-W-001
+    section_id: AC-COMM-W-001
+    name: 호스트 통신 재시도 Warning
+    category: COMM
+    severity: W
+    threshold_text: "T3 timeout 발생 (재시도로 복구됨)"
+    typical_causes: ["네트워크 미세 지연"]
+    applicable_eq_types: [CVD, PVD, DRY, WET, SCN, CTR, FUR, RTP, HCI, MCI, POL, CLN, MES, INS]
+    related_sop_id: SOP-COMM-001
+    has_documented_action: true
+  - code: COMM-W-002
+    section_id: AC-COMM-W-002
+    name: 센서 통신 일시 단절
+    category: COMM
+    severity: W
+    threshold_text: "특정 SVID 데이터 결손 < 3초"
+    typical_causes: ["DAQ 모듈 jitter"]
+    applicable_eq_types: [CVD, PVD, DRY, FUR, RTP, HCI, MCI]
+    related_sop_id: null
+    has_documented_action: false  # FAQ로 위임
+
+  # ---- REC (3) ----
+  - code: REC-H-001
+    section_id: AC-REC-H-001
+    name: Recipe 다운로드 실패 High
+    category: REC
+    severity: H
+    threshold_text: "MES → 설비 recipe 다운로드 3회 연속 실패"
+    typical_causes: ["recipe checksum 불일치", "권한 만료"]
+    applicable_eq_types: [CVD, PVD, DRY, WET, SCN, CTR, FUR, RTP, HCI, MCI, POL, CLN]
+    related_sop_id: SOP-REC-001
+    has_documented_action: true
+  - code: REC-M-001
+    section_id: AC-REC-M-001
+    name: Recipe 파라미터 검증 실패
+    category: REC
+    severity: M
+    threshold_text: "파라미터 spec 범위 초과 또는 필수 필드 누락"
+    typical_causes: ["recipe 편집 오류"]
+    applicable_eq_types: [CVD, PVD, DRY, WET, SCN, CTR, FUR, RTP, HCI, MCI, POL, CLN]
+    related_sop_id: SOP-REC-001
+    has_documented_action: true
+  - code: REC-W-001
+    section_id: AC-REC-W-001
+    name: Recipe 버전 불일치 Warning
+    category: REC
+    severity: W
+    threshold_text: "설비 실행 recipe 버전 ≠ MES 등록 latest version"
+    typical_causes: ["버전 동기화 지연"]
+    applicable_eq_types: [CVD, PVD, DRY, WET, SCN, CTR, FUR, RTP, HCI, MCI, POL, CLN]
+    related_sop_id: SOP-REC-001
+    has_documented_action: true
+
+  # ---- MECH (3) ----
+  - code: MECH-H-001
+    section_id: AC-MECH-H-001
+    name: 로봇 핸들링 오류 High
+    category: MECH
+    severity: H
+    threshold_text: "EFEM 로봇 wafer mapping 또는 transfer 실패"
+    typical_causes: ["wafer 위치 이상", "vacuum chuck 흡착 불량"]
+    applicable_eq_types: [CVD, PVD, DRY, WET, SCN, CTR, HCI, MCI, POL, CLN, MES, INS]
+    related_sop_id: SOP-MECH-001
+    has_documented_action: true
+  - code: MECH-M-001
+    section_id: AC-MECH-M-001
+    name: 슬릿밸브 동작 이상
+    category: MECH
+    severity: M
+    threshold_text: "open/close 시간 > spec + 0.5초"
+    typical_causes: ["공압 라인 압력 저하", "센서 노후"]
+    applicable_eq_types: [CVD, PVD, DRY, HCI, MCI]
+    related_sop_id: SOP-MECH-002
+    has_documented_action: true
+  - code: MECH-W-001
+    section_id: AC-MECH-W-001
+    name: 진동 센서 경고
+    category: MECH
+    severity: W
+    threshold_text: "베어링 진동 RMS > baseline × 1.5"
+    typical_causes: ["베어링 마모 초기"]
+    applicable_eq_types: [CVD, PVD, DRY, POL]
+    related_sop_id: null
+    has_documented_action: false  # KB orphan
+
+# -----------------------------------------------------------------------------
+# 7. 설비 마스터 (Equipment Master) — 30 setups
+# -----------------------------------------------------------------------------
+equipment:
+  - id: THIN-CVD-01
+    type: CVD
+    location: FAB1-1F-A01
+    vendor: AMAT
+    install_year: 2021
+    chambers: [CH-A, CH-B]
+    status: PRODUCTION
+  - id: THIN-CVD-02
+    type: CVD
+    location: FAB1-1F-A02
+    vendor: AMAT
+    install_year: 2021
+    chambers: [CH-A, CH-B]
+    status: PRODUCTION
+  - id: THIN-CVD-03
+    type: CVD
+    location: FAB1-1F-A03
+    vendor: LAM
+    install_year: 2022
+    chambers: [CH-A]
+    status: PRODUCTION
+  - id: THIN-PVD-01
+    type: PVD
+    location: FAB1-1F-B01
+    vendor: AMAT
+    install_year: 2020
+    chambers: [CH-A, CH-B, CH-C]
+    status: PRODUCTION
+  - id: THIN-PVD-02
+    type: PVD
+    location: FAB1-1F-B02
+    vendor: AMAT
+    install_year: 2020
+    chambers: [CH-A, CH-B]
+    status: PRODUCTION
+  - id: ETCH-DRY-01
+    type: DRY
+    location: FAB1-2F-A01
+    vendor: LAM
+    install_year: 2022
+    chambers: [CH-A, CH-B]
+    status: PRODUCTION
+  - id: ETCH-DRY-02
+    type: DRY
+    location: FAB1-2F-A02
+    vendor: LAM
+    install_year: 2022
+    chambers: [CH-A, CH-B]
+    status: PRODUCTION
+  - id: ETCH-DRY-03
+    type: DRY
+    location: FAB1-2F-A03
+    vendor: TEL
+    install_year: 2023
+    chambers: [CH-A, CH-B, CH-C, CH-D]
+    status: PRODUCTION
+  - id: ETCH-WET-01
+    type: WET
+    location: FAB1-2F-B01
+    vendor: SEMES
+    install_year: 2019
+    chambers: []
+    status: PRODUCTION
+  - id: PHOTO-SCN-01
+    type: SCN
+    location: FAB1-3F-A01
+    vendor: ASML
+    install_year: 2022
+    chambers: []
+    status: PRODUCTION
+  - id: PHOTO-SCN-02
+    type: SCN
+    location: FAB1-3F-A02
+    vendor: ASML
+    install_year: 2022
+    chambers: []
+    status: PRODUCTION
+  - id: PHOTO-SCN-03
+    type: SCN
+    location: FAB1-3F-A03
+    vendor: ASML
+    install_year: 2020
+    chambers: []
+    status: PRODUCTION
+  - id: PHOTO-CTR-01
+    type: CTR
+    location: FAB1-3F-B01
+    vendor: TEL
+    install_year: 2021
+    chambers: []
+    status: PRODUCTION
+  - id: PHOTO-CTR-02
+    type: CTR
+    location: FAB1-3F-B02
+    vendor: TEL
+    install_year: 2021
+    chambers: []
+    status: PRODUCTION
+  - id: DIFF-FUR-01
+    type: FUR
+    location: FAB1-4F-A01
+    vendor: KOKUSAI
+    install_year: 2019
+    chambers: [Z1, Z2, Z3, Z4, Z5]
+    status: PRODUCTION
+  - id: DIFF-FUR-02
+    type: FUR
+    location: FAB1-4F-A02
+    vendor: KOKUSAI
+    install_year: 2019
+    chambers: [Z1, Z2, Z3, Z4, Z5]
+    status: PRODUCTION
+  - id: DIFF-FUR-03
+    type: FUR
+    location: FAB1-4F-A03
+    vendor: TEL
+    install_year: 2020
+    chambers: [Z1, Z2, Z3]
+    status: MAINTENANCE
+  - id: DIFF-RTP-01
+    type: RTP
+    location: FAB1-4F-B01
+    vendor: AMAT
+    install_year: 2022
+    chambers: [CH-A]
+    status: PRODUCTION
+  - id: IMP-HCI-01
+    type: HCI
+    location: FAB1-5F-A01
+    vendor: AMAT
+    install_year: 2020
+    chambers: []
+    status: PRODUCTION
+  - id: IMP-HCI-02
+    type: HCI
+    location: FAB1-5F-A02
+    vendor: AMAT
+    install_year: 2020
+    chambers: []
+    status: PRODUCTION
+  - id: IMP-MCI-01
+    type: MCI
+    location: FAB1-5F-B01
+    vendor: AXCELIS
+    install_year: 2021
+    chambers: []
+    status: PRODUCTION
+  - id: CMP-POL-01
+    type: POL
+    location: FAB1-6F-A01
+    vendor: AMAT
+    install_year: 2021
+    chambers: []
+    status: PRODUCTION
+  - id: CMP-POL-02
+    type: POL
+    location: FAB1-6F-A02
+    vendor: AMAT
+    install_year: 2021
+    chambers: []
+    status: PRODUCTION
+  - id: CMP-POL-03
+    type: POL
+    location: FAB1-6F-A03
+    vendor: EBARA
+    install_year: 2023
+    chambers: []
+    status: PRODUCTION
+  - id: CLN-WET-01
+    type: CLN
+    location: FAB1-6F-B01
+    vendor: SEMES
+    install_year: 2020
+    chambers: []
+    status: PRODUCTION
+  - id: CLN-WET-02
+    type: CLN
+    location: FAB1-6F-B02
+    vendor: SEMES
+    install_year: 2020
+    chambers: []
+    status: PRODUCTION
+  - id: MTL-MES-01
+    type: MES
+    location: FAB1-7F-A01
+    vendor: KLA
+    install_year: 2022
+    chambers: []
+    status: PRODUCTION
+  - id: MTL-MES-02
+    type: MES
+    location: FAB1-7F-A02
+    vendor: NANOMETRICS
+    install_year: 2021
+    chambers: []
+    status: PRODUCTION
+  - id: MTL-INS-01
+    type: INS
+    location: FAB1-7F-B01
+    vendor: KLA
+    install_year: 2022
+    chambers: []
+    status: PRODUCTION
+  - id: MTL-INS-02
+    type: INS
+    location: FAB1-7F-B02
+    vendor: KLA
+    install_year: 2021
+    chambers: []
+    status: PRODUCTION
+
+# -----------------------------------------------------------------------------
+# 8. 사용자 마스터 (User Master) — 25 users
+#    roles: EQ_ENG (설비엔지니어), PROC_ENG (공정엔지니어), OP (운영), FIELD (현장)
+# -----------------------------------------------------------------------------
+users:
+  - id: U0001
+    name: 김지훈
+    role: EQ_ENG
+    team: THIN팀
+    email: jhkim@example.com
+  - id: U0002
+    name: 박서연
+    role: EQ_ENG
+    team: ETCH팀
+    email: syp@example.com
+  - id: U0003
+    name: 이도윤
+    role: EQ_ENG
+    team: PHOTO팀
+    email: dylee@example.com
+  - id: U0004
+    name: 최민준
+    role: EQ_ENG
+    team: DIFF팀
+    email: mjchoi@example.com
+  - id: U0005
+    name: 정하은
+    role: EQ_ENG
+    team: IMP팀
+    email: hejung@example.com
+  - id: U0006
+    name: 강시우
+    role: EQ_ENG
+    team: CMP팀
+    email: swkang@example.com
+  - id: U0007
+    name: 윤지아
+    role: EQ_ENG
+    team: MTL팀
+    email: jayoon@example.com
+  - id: U0008
+    name: 임수아
+    role: PROC_ENG
+    team: 통합공정팀
+    email: salim@example.com
+  - id: U0009
+    name: 한지호
+    role: PROC_ENG
+    team: 통합공정팀
+    email: jhhan@example.com
+  - id: U0010
+    name: 조유진
+    role: PROC_ENG
+    team: 통합공정팀
+    email: yjcho@example.com
+  - id: U0011
+    name: 신예준
+    role: PROC_ENG
+    team: 수율팀
+    email: yjshin@example.com
+  - id: U0012
+    name: 황지윤
+    role: PROC_ENG
+    team: 수율팀
+    email: jyhwang@example.com
+  - id: U0013
+    name: 송이안
+    role: OP
+    team: A조
+    email: iasong@example.com
+  - id: U0014
+    name: 안도현
+    role: OP
+    team: A조
+    email: dhahn@example.com
+  - id: U0015
+    name: 유나윤
+    role: OP
+    team: B조
+    email: nyyu@example.com
+  - id: U0016
+    name: 배준서
+    role: OP
+    team: B조
+    email: jsbae@example.com
+  - id: U0017
+    name: 노지안
+    role: OP
+    team: C조
+    email: jano@example.com
+  - id: U0018
+    name: 도서윤
+    role: OP
+    team: C조
+    email: sydo@example.com
+  - id: U0019
+    name: 권하준
+    role: FIELD
+    team: 현장1팀
+    email: hjkwon@example.com
+  - id: U0020
+    name: 백서아
+    role: FIELD
+    team: 현장1팀
+    email: sabaek@example.com
+  - id: U0021
+    name: 남도하
+    role: FIELD
+    team: 현장2팀
+    email: dhnam@example.com
+  - id: U0022
+    name: 류시현
+    role: FIELD
+    team: 현장2팀
+    email: shryu@example.com
+  - id: U0023
+    name: 문지원
+    role: EQ_ENG
+    team: 통신/CIM팀
+    email: jwmoon@example.com
+  - id: U0024
+    name: 오태이
+    role: EQ_ENG
+    team: 통신/CIM팀
+    email: tio@example.com
+  - id: U0025
+    name: 진서아
+    role: OP
+    team: 야간조
+    email: sajin@example.com
+
+# -----------------------------------------------------------------------------
+# 9. 정책 섹션 (Operation Policy section anchors)
+#    - section_id 는 operation_policy.md 의 anchor 와 일치한다.
+# -----------------------------------------------------------------------------
+policies:
+  - section_id: POL-PERM-001
+    title: 역할별 권한 매트릭스
+    summary: "EQ_ENG/PROC_ENG/OP/FIELD 별 가능한 작업 (임계치 변경/recipe 조회/VOC 등록 등)."
+  - section_id: POL-PERM-002
+    title: 임계치 변경 권한
+    summary: "임계치 변경은 PROC_ENG 이상만 가능. EQ_ENG는 신청만 가능."
+  - section_id: POL-SLA-001
+    title: VOC 처리 SLA
+    summary: "Critical 5분, High 15분, Medium 4시간, Warning 24시간 응답 목표."
+  - section_id: POL-ESC-001
+    title: 내부 Escalation 절차
+    summary: "1차 EQ_ENG → 2차 팀장 → 3차 공정 PM."
+  - section_id: POL-ESC-002
+    title: 벤더 Escalation 절차
+    summary: "내부 SOP로 해결 불가 시 벤더 기술지원 티켓 발행 — KB 밖 질의의 표준 응답 경로."
+  - section_id: POL-CHG-001
+    title: 임계치 변경 신청 절차
+    summary: "신청서 양식 / 검토자 / 승인 단계 / 적용 후 모니터링 의무."
+  - section_id: POL-DATA-001
+    title: 데이터 보존 정책
+    summary: "Trend 원본 90일, 알람 이력 2년, VOC 이력 5년."
+  - section_id: POL-ACC-001
+    title: 시스템 접근 권한 신청
+    summary: "신규 사용자 등록, 권한 변경 절차."
+  - section_id: POL-NIGHT-001
+    title: 야간/주말 비상 대응 정책
+    summary: "정규시간 외 Critical 알람 발생 시 호출 트리 — SOP-ESC-002 연계."
+  - section_id: POL-SCOPE-001
+    title: 지식베이스 범위 (Out-of-Scope 명시)
+    summary: "본 시스템 KB가 다루지 않는 영역(벤더 내부 파라미터, 보안 운영, 인사) 명시."
+
+# -----------------------------------------------------------------------------
+# 10. 시스템 매뉴얼 섹션 (System User Manual anchors)
+#     - section_id 는 system_user_manual.md 의 anchor 와 일치한다.
+# -----------------------------------------------------------------------------
+manual_sections:
+  - section_id: SM-OVR-001
+    title: 시스템 개요 및 주요 기능
+  - section_id: SM-LOGIN-001
+    title: 로그인 / 권한 확인
+  - section_id: SM-MON-001
+    title: 실시간 모니터링 대시보드
+  - section_id: SM-ALM-001
+    title: 알람 조회 및 필터 사용법
+  - section_id: SM-ALM-002
+    title: 알람 임계치 확인 및 변경 신청
+  - section_id: SM-TRD-001
+    title: Trend Chart 조회
+  - section_id: SM-TRD-002
+    title: Trend Chart 조회 오류 해결
+  - section_id: SM-SRC-001
+    title: Recipe / Lot / Chamber 기준 검색
+  - section_id: SM-VOC-001
+    title: VOC 등록 방법
+  - section_id: SM-VOC-002
+    title: VOC 상태 조회
+
+# -----------------------------------------------------------------------------
+# 11. FAQ 섹션
+# -----------------------------------------------------------------------------
+faq_sections:
+  - section_id: FAQ-001
+    title: 로그인이 안 됩니다
+    related_policy: POL-ACC-001
+  - section_id: FAQ-002
+    title: Trend Chart에 데이터가 표시되지 않습니다
+    related_manual: SM-TRD-002
+  - section_id: FAQ-003
+    title: 알람이 뜨는데 설비 화면에는 정상으로 보입니다
+    related_alarm_codes: [COMM-W-001, COMM-W-002]
+  - section_id: FAQ-004
+    title: 가스 잔량 경고는 어떻게 처리하나요
+    related_alarm_codes: [GAS-W-001]
+  - section_id: FAQ-005
+    title: VOC를 등록했는데 처리 담당자가 보이지 않습니다
+    related_policy: POL-SLA-001
+  - section_id: FAQ-006
+    title: 임계치를 변경하고 싶은데 어떻게 해야 하나요
+    related_policy: POL-CHG-001
+  - section_id: FAQ-007
+    title: SECS/GEM 응답이 느려졌습니다
+    related_alarm_codes: [COMM-M-001]
+  - section_id: FAQ-008
+    title: Recipe 버전 불일치 경고가 떠 있습니다
+    related_alarm_codes: [REC-W-001]
+  - section_id: FAQ-009
+    title: 알람 이력은 얼마나 보관되나요
+    related_policy: POL-DATA-001
+  - section_id: FAQ-010
+    title: 야간에 Critical 알람이 발생했을 때 어디에 연락해야 하나요
+    related_policy: POL-NIGHT-001
+
+# -----------------------------------------------------------------------------
+# 12. 파생 산출물 명세 (build_db.py 가 사용)
+# -----------------------------------------------------------------------------
+derivation:
+  alarm_history:
+    target_rows: 500
+    date_range: ["2026-02-15", "2026-05-15"]
+    hotspot_equipment: [THIN-CVD-02, ETCH-DRY-03, DIFF-FUR-02]
+    severity_distribution: {C: 0.05, H: 0.20, M: 0.30, W: 0.40, I: 0.05}
+  voc_history:
+    target_rows: 150
+    date_range: ["2026-02-15", "2026-05-10"]
+    status_distribution: {OPEN: 0.10, IN_PROGRESS: 0.20, RESOLVED: 0.65, CLOSED: 0.05}

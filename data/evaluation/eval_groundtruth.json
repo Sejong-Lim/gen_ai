@@ -1,0 +1,769 @@
+{
+  "groundtruth": [
+    {
+      "qid": "Q-001",
+      "gold_docs": [
+        "alarm_code_guide.md#sec-AC-TEMP-H-001"
+      ],
+      "gold_key_points": [
+        "챔버 과열 High 알람",
+        "임계치: setpoint + 20°C 초과",
+        "자동 hold",
+        "관련 SOP: SOP-TEMP-001"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 1
+    },
+    {
+      "qid": "Q-002",
+      "gold_docs": [
+        "alarm_code_guide.md#sec-AC-PRES-C-001"
+      ],
+      "gold_key_points": [
+        "챔버 압력 Critical",
+        "setpoint 대비 ±30% 초과",
+        "즉시 hold",
+        "관련 SOP: SOP-PRES-001"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 1
+    },
+    {
+      "qid": "Q-003",
+      "gold_docs": [
+        "alarm_code_guide.md#sec-AC-RF-C-001"
+      ],
+      "gold_key_points": [
+        "RF Reflected Power Critical",
+        "Reflected/Forward > 30%",
+        "즉시 RF off",
+        "관련 SOP: SOP-RF-001"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 1
+    },
+    {
+      "qid": "Q-004",
+      "gold_docs": [
+        "alarm_code_guide.md#sec-AC-VAC-H-001"
+      ],
+      "gold_key_points": [
+        "진공도 미달 High",
+        "base pressure > 5e-6 Torr",
+        "목표 1e-6 Torr",
+        "관련 SOP: SOP-VAC-001"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 1
+    },
+    {
+      "qid": "Q-005",
+      "gold_docs": [
+        "alarm_code_guide.md#sec-AC-COMM-M-001"
+      ],
+      "gold_key_points": [
+        "SECS/GEM 응답 지연",
+        "S6F11 응답 시간 > 5초",
+        "host load 증가 또는 buffer overflow",
+        "관련 SOP: SOP-COMM-001"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 1
+    },
+    {
+      "qid": "Q-006",
+      "gold_docs": [
+        "alarm_code_guide.md#sec-AC-REC-W-001",
+        "faq.md#sec-FAQ-008"
+      ],
+      "gold_key_points": [
+        "Recipe 버전 불일치 Warning",
+        "설비 실행 버전 ≠ MES 최신",
+        "대부분 단순 동기화 지연",
+        "잘못된 recipe로 가동 아님"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 1
+    },
+    {
+      "qid": "Q-007",
+      "gold_docs": [
+        "alarm_code_guide.md#sec-AC-DOSE-H-001"
+      ],
+      "gold_key_points": [
+        "Dose 균일도 High",
+        "wafer 내 dose 균일도 (1σ) > 1.5%",
+        "관련 SOP: SOP-DOSE-001"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 1
+    },
+    {
+      "qid": "Q-008",
+      "gold_docs": [
+        "alarm_code_guide.md#sec-AC-GAS-W-001",
+        "faq.md#sec-FAQ-004"
+      ],
+      "gold_key_points": [
+        "실린더 잔량 < 15%",
+        "SOP 없음 — FAQ-004 참조",
+        "가스 공급팀(내선 3000)에 교체 요청",
+        "잔량 10% 이하에서 추가 알람 없음 — 운영 관리 필요"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 1
+    },
+    {
+      "qid": "Q-009",
+      "gold_docs": [
+        "alarm_code_guide.md#sec-AC-TEMP-H-001",
+        "troubleshooting_guide.md#sec-SOP-TEMP-001"
+      ],
+      "gold_key_points": [
+        "TEMP-H-001 의미 (setpoint +20°C 초과)",
+        "SOP-TEMP-001 1단계: 가스 공급 상태 확인",
+        "2단계: 냉각수 유량/온도 확인",
+        "3단계: 히터 출력 확인",
+        "4단계: TC 응답 확인",
+        "사전 안전: Toxic Gas 동시 검출 시 SOP-GAS-001 우선"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 2
+    },
+    {
+      "qid": "Q-010",
+      "gold_docs": [
+        "alarm_code_guide.md#sec-AC-PRES-C-001",
+        "troubleshooting_guide.md#sec-SOP-PRES-001"
+      ],
+      "gold_key_points": [
+        "Critical은 수동 vent 금지",
+        "터보 펌프 회전수 95% 이상 확인",
+        "Throttle 위치 끝단 고착 여부",
+        "가스 flow 합 +15% 초과 시 SOP-FLOW-001 병행",
+        "Setpoint 변경 응답 테스트"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 2
+    },
+    {
+      "qid": "Q-011",
+      "gold_docs": [
+        "alarm_code_guide.md#sec-AC-RF-M-001",
+        "troubleshooting_guide.md#sec-SOP-RF-002"
+      ],
+      "gold_key_points": [
+        "RF-M-001: Auto-tune 후 reflected > 5% 잔존",
+        "Auto-tune 재실행",
+        "부하 변동 트리거(recipe 변경/chamber vent) 확인",
+        "Tune cap 위치 끝단 도달 여부 확인",
+        "Matcher reset 후 재실행",
+        "수동 tune은 PROC_ENG 승인 — 24시간 내 PM 일정 반영 필수"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 2
+    },
+    {
+      "qid": "Q-012",
+      "gold_docs": [
+        "alarm_code_guide.md#sec-AC-VAC-C-001",
+        "troubleshooting_guide.md#sec-SOP-VAC-001"
+      ],
+      "gold_key_points": [
+        "VAC-C-001: leak rate > 1e-5 Torr·L/s 또는 base pressure 도달 실패",
+        "챔버 isolation",
+        "Rate of Rise 측정",
+        "누설 위치: viewport → door O-ring → feedthrough → gas line",
+        "He leak test",
+        "feedthrough 누설 시 PROC_ENG 승인 필수"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 2
+    },
+    {
+      "qid": "Q-013",
+      "gold_docs": [
+        "alarm_code_guide.md#sec-AC-COMM-H-001",
+        "troubleshooting_guide.md#sec-SOP-COMM-001",
+        "operation_policy.md#sec-POL-PERM-001"
+      ],
+      "gold_key_points": [
+        "COMM-H-001: EAP-호스트 link 60초 이상 단절",
+        "EAP 프로세스 상태 확인",
+        "네트워크 ping 테스트",
+        "EAP 재시작은 EQ_ENG 권한 가능",
+        "수동 운영 모드 전환은 PROC_ENG 권한",
+        "수동 운영 4시간 제한"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 2
+    },
+    {
+      "qid": "Q-014",
+      "gold_docs": [
+        "alarm_code_guide.md#sec-AC-REC-H-001",
+        "troubleshooting_guide.md#sec-SOP-REC-001"
+      ],
+      "gold_key_points": [
+        "REC-H-001: MES → 설비 recipe 다운로드 3회 연속 실패",
+        "checksum 비교",
+        "권한 만료 확인",
+        "수동 다운로드 3회 재시도",
+        "PROC_ENG 재등록",
+        "최후: CIM팀"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 2
+    },
+    {
+      "qid": "Q-015",
+      "gold_docs": [
+        "alarm_code_guide.md#sec-AC-GAS-H-001",
+        "troubleshooting_guide.md#sec-SOP-GAS-002"
+      ],
+      "gold_key_points": [
+        "GAS-H-001: 가스 라인 누설 의심",
+        "Toxic Gas 동시 발생 시 즉시 SOP-GAS-001로 전환",
+        "해당 가스 isolation",
+        "MFC 입출력 압력 비교",
+        "VCR fitting 점검",
+        "He leak test"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 2
+    },
+    {
+      "qid": "Q-016",
+      "gold_docs": [
+        "alarm_code_guide.md#sec-AC-DOSE-C-001",
+        "troubleshooting_guide.md#sec-SOP-DOSE-001"
+      ],
+      "gold_key_points": [
+        "DOSE-C-001: 측정 dose가 recipe spec의 ±5% 초과",
+        "Critical은 자동 lot hold",
+        "Faraday cup contamination 확인",
+        "Beam profile 측정",
+        "Calibration 절차 (PROC_ENG 승인)",
+        "재측정 wafer 평가"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 2
+    },
+    {
+      "qid": "Q-017",
+      "gold_docs": [
+        "alarm_code_guide.md#sec-AC-TEMP-H-001",
+        "troubleshooting_guide.md#sec-SOP-TEMP-001"
+      ],
+      "gold_key_points": [
+        "TEMP-H-001 가능성 시사 (setpoint +20°C)",
+        "SOP-TEMP-001 순서: 가스 → 냉각수 → 히터 → TC",
+        "산발적 발생은 점검 우선순위 1·2단계 권장"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 2
+    },
+    {
+      "qid": "Q-018",
+      "gold_docs": [
+        "alarm_code_guide.md#sec-AC-TEMP-H-002",
+        "troubleshooting_guide.md#sec-SOP-TEMP-002"
+      ],
+      "gold_key_points": [
+        "TEMP-H-002 가능성 (zone 간 > 8°C)",
+        "SOP-TEMP-002 순서",
+        "TC 교차 검증",
+        "히터 단선 / 보온재 손상 가능성"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 2
+    },
+    {
+      "qid": "Q-019",
+      "gold_docs": [
+        "system_user_manual.md#sec-SM-TRD-002",
+        "faq.md#sec-FAQ-002"
+      ],
+      "gold_key_points": [
+        "흔한 원인 3가지: 수집 누락 / DAQ 이슈 / 기간 과도",
+        "다른 SVID 확인",
+        "통신 단절 시기 확인 (COMM-W-001/002)",
+        "데이터 누락이면 VOC 등록"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 2
+    },
+    {
+      "qid": "Q-020",
+      "gold_docs": [
+        "operation_policy.md#sec-POL-PERM-002",
+        "operation_policy.md#sec-POL-CHG-001",
+        "faq.md#sec-FAQ-006"
+      ],
+      "gold_key_points": [
+        "신청은 EQ_ENG 가능, 승인은 PROC_ENG",
+        "임계치 변경 신청 절차 (양식)",
+        "정량적 근거 필수",
+        "POL-CHG-001 절차"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 2
+    },
+    {
+      "qid": "Q-021",
+      "gold_docs": [
+        "operation_policy.md#sec-POL-NIGHT-001",
+        "troubleshooting_guide.md#sec-SOP-ESC-002",
+        "faq.md#sec-FAQ-010"
+      ],
+      "gold_key_points": [
+        "자동 호출 트리: EQ_ENG → 팀장 → 공정 PM → 벤더 Tier 2",
+        "Critical SLA 5분 이내 1차 응답",
+        "임시 운영 결정은 공정 PM 이상",
+        "EHS 알람은 EHS 핫라인 별도"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 2
+    },
+    {
+      "qid": "Q-022",
+      "gold_docs": [
+        "operation_policy.md#sec-POL-SLA-001",
+        "faq.md#sec-FAQ-005"
+      ],
+      "gold_key_points": [
+        "NORMAL 1차 응답 SLA: 4시간",
+        "6시간이면 SLA 초과 — 자동 escalation 알림 발송됨",
+        "카테고리에 따라 수동 배정 — 최대 영업일 1일",
+        "24시간 초과 시 본인이 팀장에게 통보"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 2
+    },
+    {
+      "qid": "Q-023",
+      "gold_docs": [
+        "operation_policy.md#sec-POL-SCOPE-001",
+        "operation_policy.md#sec-POL-ESC-002",
+        "troubleshooting_guide.md#sec-SOP-ESC-001"
+      ],
+      "gold_key_points": [
+        "Tune cap 추천값은 KB Out-of-Scope (벤더 내부 파라미터)",
+        "명시적 거절 — '근거를 찾을 수 없습니다'",
+        "SOP-RF-002 일반 절차 안내 가능",
+        "벤더 escalation 경로 안내"
+      ],
+      "expected_refusal": true,
+      "expected_clarification": false,
+      "min_citations": 1
+    },
+    {
+      "qid": "Q-024",
+      "gold_docs": [
+        "operation_policy.md#sec-POL-SCOPE-001",
+        "operation_policy.md#sec-POL-ESC-002"
+      ],
+      "gold_key_points": [
+        "Beam profile 최적화 파라미터는 Out-of-Scope (벤더+recipe 영역)",
+        "명시적 거절",
+        "벤더/공정팀 escalation 안내"
+      ],
+      "expected_refusal": true,
+      "expected_clarification": false,
+      "min_citations": 1
+    },
+    {
+      "qid": "Q-025",
+      "gold_docs": [
+        "alarm_code_guide.md#sec-AC-TEMP-W-001",
+        "troubleshooting_guide.md#sec-SOP-TEMP-002"
+      ],
+      "gold_key_points": [
+        "TEMP-W-001은 별도 SOP 미정의 (KB orphan)",
+        "Idle 자연 냉각으로 정상 동작 범위",
+        "반복 또는 다음 Lot 도달 지연 시 SOP-TEMP-002 참조 권장"
+      ],
+      "expected_refusal": true,
+      "expected_clarification": false,
+      "min_citations": 1
+    },
+    {
+      "qid": "Q-026",
+      "gold_docs": [
+        "operation_policy.md#sec-POL-SCOPE-001"
+      ],
+      "gold_key_points": [
+        "MES 시스템 사용법은 Out-of-Scope",
+        "본 시스템은 FDC 전용",
+        "MES 매뉴얼 별도 참조 안내"
+      ],
+      "expected_refusal": true,
+      "expected_clarification": false,
+      "min_citations": 1
+    },
+    {
+      "qid": "Q-027",
+      "gold_docs": [
+        "operation_policy.md#sec-POL-SCOPE-001"
+      ],
+      "gold_key_points": [
+        "TEMP-Z-999는 등록된 알람코드가 아님",
+        "Severity Z는 정의되지 않음 (정의: C/H/M/W/I)",
+        "명시적으로 '존재하지 않는다'를 명시",
+        "올바른 코드 재확인 요청"
+      ],
+      "expected_refusal": true,
+      "expected_clarification": false,
+      "min_citations": 1
+    },
+    {
+      "qid": "Q-028",
+      "gold_docs": [
+        "operation_policy.md#sec-POL-SCOPE-001"
+      ],
+      "gold_key_points": [
+        "ETCH-DRY-99는 등록된 설비가 아님 (ETCH-DRY는 01/02/03만 존재)",
+        "설비 ID 재확인 요청",
+        "PRES-C-001 자체는 유효 코드 (SOP-PRES-001) — 단, 설비 미존재로 답변 불가"
+      ],
+      "expected_refusal": true,
+      "expected_clarification": false,
+      "min_citations": 1
+    },
+    {
+      "qid": "Q-029",
+      "gold_docs": [
+        "system_user_manual.md#sec-SM-VOC-001"
+      ],
+      "gold_key_points": [
+        "정보 부족 — 명확화 질문 필요",
+        "필요 정보: 설비 ID, 알람 코드, 발생 시점/빈도",
+        "답변보다 질문 우선",
+        "추가 확인 질문 슬롯 활용"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": true,
+      "min_citations": 0
+    },
+    {
+      "qid": "Q-030",
+      "gold_docs": [
+        "system_user_manual.md#sec-SM-VOC-002",
+        "operation_policy.md#sec-POL-SLA-001"
+      ],
+      "gold_key_points": [
+        "VOC ID 또는 본인 메뉴 안내",
+        "추가 확인: 정확한 VOC ID",
+        "상태 단계 의미 설명 (OPEN/IN_PROGRESS/RESOLVED/CLOSED)"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": true,
+      "min_citations": 0
+    },
+    {
+      "qid": "Q-031",
+      "gold_docs": [
+        "alarm_code_guide.md#sec-AC-VAC-H-001",
+        "troubleshooting_guide.md#sec-SOP-VAC-001"
+      ],
+      "gold_key_points": [
+        "VAC-H-001 진공도 미달 가능성 (base pressure > 5e-6 Torr)",
+        "SOP-VAC-001 단계별 점검",
+        "viewport → O-ring → feedthrough 순서"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 2
+    },
+    {
+      "qid": "Q-032",
+      "gold_docs": [
+        "alarm_code_guide.md#sec-AC-RF-M-001",
+        "troubleshooting_guide.md#sec-SOP-RF-002"
+      ],
+      "gold_key_points": [
+        "RF-M-001 Matching 불량 (reflected > 5%)",
+        "Auto-tune 재실행",
+        "Tune cap 끝단 도달 확인"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 2
+    },
+    {
+      "qid": "Q-033",
+      "gold_docs": [
+        "alarm_code_guide.md#sec-AC-COMM-H-001",
+        "troubleshooting_guide.md#sec-SOP-COMM-001"
+      ],
+      "gold_key_points": [
+        "COMM-H-001 EAP 단절 (60초 이상)",
+        "EAP 프로세스 재시작 (EQ_ENG 권한)",
+        "수동 운영 모드는 PROC_ENG 권한, 최대 4시간"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 2
+    },
+    {
+      "qid": "Q-034",
+      "gold_docs": [
+        "alarm_code_guide.md#sec-AC-GAS-H-001",
+        "troubleshooting_guide.md#sec-SOP-GAS-002",
+        "troubleshooting_guide.md#sec-SOP-GAS-001"
+      ],
+      "gold_key_points": [
+        "Toxic Gas 동시 검출 우선 확인 → SOP-GAS-001",
+        "GAS-H-001 일반 절차",
+        "해당 가스 isolation 후 He leak test"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 2
+    },
+    {
+      "qid": "Q-035",
+      "gold_docs": [
+        "alarm_code_guide.md#sec-AC-DOSE-H-001",
+        "troubleshooting_guide.md#sec-SOP-DOSE-001"
+      ],
+      "gold_key_points": [
+        "DOSE-H-001 균일도 임계치 1.5% (1σ)",
+        "1%면 임계치 이내",
+        "추이 모니터링 권장"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 1
+    },
+    {
+      "qid": "Q-036",
+      "gold_docs": [
+        "operation_policy.md#sec-POL-PERM-002",
+        "operation_policy.md#sec-POL-CHG-001",
+        "system_user_manual.md#sec-SM-ALM-002"
+      ],
+      "gold_key_points": [
+        "신청 EQ_ENG / 승인 PROC_ENG",
+        "Critical은 공정 PM 추가 승인",
+        "알람 상세 화면 [임계치 변경 신청] 버튼",
+        "정량적 근거 필수"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 2
+    },
+    {
+      "qid": "Q-037",
+      "gold_docs": [
+        "operation_policy.md#sec-POL-PERM-001",
+        "system_user_manual.md#sec-SM-TRD-001"
+      ],
+      "gold_key_points": [
+        "EQ_ENG 이상만 다운로드 가능",
+        "회당 1GB / 일일 10GB 제한"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 1
+    },
+    {
+      "qid": "Q-038",
+      "gold_docs": [
+        "operation_policy.md#sec-POL-DATA-001",
+        "faq.md#sec-FAQ-009"
+      ],
+      "gold_key_points": [
+        "알람 이력 메타데이터 2년 보존",
+        "Trend 원본 90일 (이후 1분 평균 다운샘플)"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 1
+    },
+    {
+      "qid": "Q-039",
+      "gold_docs": [
+        "operation_policy.md#sec-POL-ACC-001"
+      ],
+      "gold_key_points": [
+        "사내 IT 포털에서 신청",
+        "부서장 승인 필요",
+        "관리자 처리 영업일 1일 이내"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 1
+    },
+    {
+      "qid": "Q-040",
+      "gold_docs": [
+        "operation_policy.md#sec-POL-PERM-002"
+      ],
+      "gold_key_points": [
+        "PROC_ENG 1차 승인",
+        "공정 PM 추가 승인 필요",
+        "EHS 연계 시 EHS 부서 추가 승인"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": false,
+      "min_citations": 1
+    },
+    {
+      "qid": "Q-041",
+      "gold_docs": [
+        "operation_policy.md#sec-POL-SCOPE-001"
+      ],
+      "gold_key_points": [
+        "MES 사용법은 Out-of-Scope",
+        "MES 매뉴얼 별도 참조"
+      ],
+      "expected_refusal": true,
+      "expected_clarification": false,
+      "min_citations": 1
+    },
+    {
+      "qid": "Q-042",
+      "gold_docs": [
+        "operation_policy.md#sec-POL-SCOPE-001"
+      ],
+      "gold_key_points": [
+        "인사 정보는 Out-of-Scope",
+        "HR 시스템 참조"
+      ],
+      "expected_refusal": true,
+      "expected_clarification": false,
+      "min_citations": 1
+    },
+    {
+      "qid": "Q-043",
+      "gold_docs": [
+        "operation_policy.md#sec-POL-SCOPE-001"
+      ],
+      "gold_key_points": [
+        "보안 운영은 Out-of-Scope",
+        "사내 IT 보안 부서 영역"
+      ],
+      "expected_refusal": true,
+      "expected_clarification": false,
+      "min_citations": 1
+    },
+    {
+      "qid": "Q-044",
+      "gold_docs": [
+        "operation_policy.md#sec-POL-SCOPE-001"
+      ],
+      "gold_key_points": [
+        "Recipe 내용·최적화는 Out-of-Scope",
+        "공정팀/벤더 영역"
+      ],
+      "expected_refusal": true,
+      "expected_clarification": false,
+      "min_citations": 1
+    },
+    {
+      "qid": "Q-045",
+      "gold_docs": [
+        "operation_policy.md#sec-POL-SCOPE-001"
+      ],
+      "gold_key_points": [
+        "FLOW-C-001은 등록되지 않은 코드 (FLOW 카테고리에는 Critical 없음)",
+        "FLOW의 유효 코드는 H/M/W만 존재",
+        "사용자 재확인 요청"
+      ],
+      "expected_refusal": true,
+      "expected_clarification": false,
+      "min_citations": 0
+    },
+    {
+      "qid": "Q-046",
+      "gold_docs": [
+        "operation_policy.md#sec-POL-SCOPE-001"
+      ],
+      "gold_key_points": [
+        "PHOTO-EUV-01은 등록되지 않은 설비 ID",
+        "PHOTO 등록 설비는 SCN-01/02/03, CTR-01/02",
+        "재확인 요청"
+      ],
+      "expected_refusal": true,
+      "expected_clarification": false,
+      "min_citations": 0
+    },
+    {
+      "qid": "Q-047",
+      "gold_docs": [
+        "operation_policy.md#sec-POL-SCOPE-001"
+      ],
+      "gold_key_points": [
+        "VOC ID format 다르거나 미존재",
+        "본 시스템 VOC ID 형식: VOC-2026-XXXX",
+        "재확인 요청"
+      ],
+      "expected_refusal": true,
+      "expected_clarification": false,
+      "min_citations": 0
+    },
+    {
+      "qid": "Q-048",
+      "gold_docs": [
+        "system_user_manual.md#sec-SM-VOC-001"
+      ],
+      "gold_key_points": [
+        "정보 부족 — 명확화 질문 우선",
+        "필요 정보: 설비 ID, 어떤 증상, 시점"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": true,
+      "min_citations": 0
+    },
+    {
+      "qid": "Q-049",
+      "gold_docs": [
+        "system_user_manual.md#sec-SM-VOC-002"
+      ],
+      "gold_key_points": [
+        "어떤 VOC ID인지 확인 필요",
+        "현재 표시되는 상태는?"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": true,
+      "min_citations": 0
+    },
+    {
+      "qid": "Q-050",
+      "gold_docs": [
+        "alarm_code_guide.md#sec-AC-TEMP-H-001"
+      ],
+      "gold_key_points": [
+        "TEMP 카테고리 5개 코드 안내 가능",
+        "어떤 severity인지 확인 필요",
+        "설비 ID 확인 필요"
+      ],
+      "expected_refusal": false,
+      "expected_clarification": true,
+      "min_citations": 0
+    }
+  ]
+}
