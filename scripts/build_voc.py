@@ -14,6 +14,7 @@ build_voc.py — VOC 100건 생성.
 import csv
 import json
 import random
+import re
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -667,54 +668,393 @@ CORE_VOCS = [
 
 
 # =============================================================================
-# 일반 70건 — 템플릿 양산
+# 일반 70건 — 페르소나·상황·시간·사전 시도를 조합한 다양·장문 양산
+# -----------------------------------------------------------------------------
+# 길이 혼합 분포: short(~10%) / medium(~70%) / long(~20%)
 # =============================================================================
-FILLER_TEMPLATES = {
-    "알람 원인 문의": [
-        ("{ac} 알람이 떴는데 원인이 뭔가요?", "{ac}의 일반적 원인을 안내드립니다. {causes}. 자세한 임계치는 alarm_code_guide를 참조하세요."),
-        ("{eq}에서 {ac} 알람 발생. 가능한 원인은?", "{ac}는 {category} 카테고리이며 일반적 원인은 {causes}입니다."),
+
+PERSONA_OPENERS = {
+    "EQ_ENG": [
+        "{eq} 담당 EQ 엔지니어입니다.",
+        "오늘 {eq} 정기 점검 중 발견했습니다.",
+        "{eq} {chamber} 가동 모니터링하다가 확인했습니다.",
+        "방금 {eq}에서 알람 통보를 받고 즉시 확인했습니다.",
     ],
-    "조치 방법 문의": [
-        ("{ac} 어떻게 조치하나요?", "{ac}의 표준 조치는 {sop}에 정의되어 있습니다. 단계별 절차를 따르세요."),
-        ("{eq}에서 {ac} 발생, 조치 방법 안내 부탁드립니다.", "{sop} 절차를 따라 점검하세요. 자세한 단계는 troubleshooting_guide 참조."),
+    "PROC_ENG": [
+        "공정팀 PROC_ENG입니다. {eq} 관련해서 확인 요청드립니다.",
+        "오늘 {eq}의 공정 트렌드를 보다가 이상점을 발견했습니다.",
+        "수율 회의 준비 중 {eq} 데이터에서 의문점이 생겼습니다.",
+        "임계치 검토 차원에서 {eq}의 최근 알람 분포를 보고 있습니다.",
     ],
-    "Trend Chart 조회 오류": [
-        ("{eq} Trend Chart 일부 구간이 끊어집니다.", "센서 통신 일시 단절(COMM-W-002)의 가능성이 높습니다. 반복 시 VOC 등록 권장."),
-        ("Trend Chart 조회 시 timeout이 자주 발생합니다.", "조회 기간을 7일 이내로 줄여보세요. SM-TRD-002 참조."),
+    "OP": [
+        "{shift}조 운영입니다. {eq} 가동 중 발생했습니다.",
+        "당직 중 {eq} 콘솔에 알람이 떠서 보고드립니다.",
+        "방금 인수인계 받았는데 {eq} 상태가 이상합니다.",
+        "{eq} 라인 책임 운영자입니다. 확인 부탁드립니다.",
     ],
-    "데이터 누락 문의": [
-        ("{eq}의 어제 데이터가 누락된 것 같습니다.", "통신 단절 시기와 DAQ 상태를 확인 후 답변 드리겠습니다. SM-TRD-002 참조."),
+    "FIELD": [
+        "현장 점검 중인 FIELD입니다. {eq}에서 이상 징후가 보입니다.",
+        "{eq} 주변 정기 순회 중 발견했습니다.",
+        "센서/배관 청소 작업 중 {eq}에서 평소와 다른 점이 보였습니다.",
+        "{eq} 현장 근접 점검 중 알람 표시를 확인했습니다.",
     ],
-    "임계치 설정 문의": [
-        ("{ac} 임계치를 완화하고 싶습니다.", "임계치 변경 신청 절차는 POL-CHG-001을 참조하세요. PROC_ENG 승인이 필요합니다."),
-        ("Critical 알람의 임계치 변경은 누가 승인하나요?", "Critical 알람은 PROC_ENG + 공정 PM 승인이 필요합니다. POL-PERM-002."),
+}
+
+TIME_PHRASES = [
+    "오늘 오전 9시경부터", "어제 야간조 인수인계 직후", "방금 직전 lot 종료 후",
+    "두 시간 전쯤부터", "오전 PM 작업 직후", "점심시간 직전부터",
+    "어제부터 간헐적으로", "지난 주말 PM 이후",
+]
+
+LOT_PHRASES = [
+    "현재 R-{type}-{n:02d} recipe로 lot 진행 중이며,",
+    "LOT-20260514-{n:03d} 가동 중에 발생했고,",
+    "직전 PM 직후 첫 lot이라 환경 영향이 의심되는데,",
+    "동일 recipe로 어제까지는 정상이었는데",
+    "다음 lot 시작 전에 해소되어야 하는 상황이라",
+    "오늘 야간 lot 배정이 이미 잡혀 있어",
+]
+
+TEAM_PHRASES = [
+    "팀장님께는 우선 1차 보고드린 상태이며",
+    "옆 챔버 담당 동료도 비슷한 알람을 봤다고 하는데",
+    "야간조 인수인계 노트에도 같은 코드가 한 번 적혀 있어서",
+    "공정팀에서는 임계치 조정 검토 중이라고 하시고",
+    "장비 벤더 측에 사전 문의는 아직 안 드린 상태이고",
+    "어제 PM 보고서에 비슷한 증상이 기록되어 있었습니다.",
+]
+
+ATTEMPT_PHRASES_GENERIC = [
+    "Trend Chart에서 최근 24시간 추이를 확인해 봤는데 명확한 spike는 없어 보였고,",
+    "EAP 재시작은 한 번 시도해 봤지만 동일 증상이 다시 나타났으며,",
+    "Recipe 파라미터는 정상 범위였고,",
+    "동일 카테고리의 다른 설비는 정상 가동 중이라",
+    "관련 알람 이력을 조회해 보니 비슷한 패턴이 일주일에 두세 번 반복되고 있고,",
+    "운영 매뉴얼에 나와 있는 1차 조치는 이미 적용했는데 차도가 없어",
+]
+
+CLOSING_PHRASES = {
+    "URGENT": [
+        "Critical 단계라 즉시 답변 부탁드립니다.",
+        "라인 정지 영향이 있어 빠른 회신이 필요합니다.",
+        "5분 SLA 내 1차 응답 부탁드립니다.",
     ],
-    "설비 상태 불일치": [
-        ("{eq} 대시보드 상태와 현장 상태가 다릅니다.", "통신 일시 단절(COMM-W-001/002) 가능성. FAQ-003 참조."),
+    "HIGH": [
+        "다음 lot 시작 전까지 답변 부탁드립니다.",
+        "오늘 안에는 회신 부탁드립니다.",
+        "신속한 진단 의견 부탁드립니다.",
     ],
-    "권한 문제": [
-        ("Trend CSV 다운로드 버튼이 비활성화입니다.", "EQ_ENG 이상 권한이 필요합니다. POL-PERM-001 참조."),
-        ("Recipe 조회 메뉴가 안 보입니다.", "Recipe 내용 조회는 PROC_ENG 이상만 가능합니다. POL-PERM-001."),
+    "NORMAL": [
+        "어떤 순서로 점검하면 좋을지 안내 부탁드립니다.",
+        "관련 SOP가 있으면 알려주시면 감사하겠습니다.",
+        "조치 방향과 추가로 확인할 항목이 있으면 알려주세요.",
     ],
-    "시스템 접속 오류": [
-        ("로그인 시 권한 없음 메시지가 뜹니다.", "POL-ACC-001에 따라 접근 권한 신청이 필요합니다."),
-        ("OTP 인증이 계속 실패합니다.", "OTP 앱 시간 동기화를 확인하세요. FAQ-001 참조."),
+    "LOW": [
+        "여유 있을 때 회신 주시면 됩니다.",
+        "근무시간 내 답변 부탁드립니다.",
+        "참고용으로 자료만 안내해 주셔도 좋습니다.",
     ],
-    "알람 코드 의미 문의": [
-        ("{ac}는 무슨 알람인가요?", "{ac}는 {category} 카테고리 {sev} severity 알람입니다. 자세한 의미는 alarm_code_guide §{section}."),
-    ],
-    "VOC 처리 상태 문의": [
-        ("{voc_id} VOC 처리 현황을 알려주세요.", "VOC 상세 화면에서 처리 단계와 담당자를 확인할 수 있습니다. SM-VOC-002 참조."),
-    ],
+}
+
+SHIFTS = ["A", "B", "C", "야간"]
+
+
+def _pick_length_class(rng):
+    r = rng.random()
+    if r < 0.10:
+        return "short"
+    if r < 0.80:
+        return "medium"
+    return "long"
+
+
+def _persona_opener(user, eq, rng):
+    role = user["role"]
+    pool = PERSONA_OPENERS.get(role, PERSONA_OPENERS["EQ_ENG"])
+    chamber = ""
+    if eq.get("chambers"):
+        chambers = eq["chambers"].split("|")
+        chamber = rng.choice(chambers) if chambers and chambers[0] else ""
+    return rng.choice(pool).format(
+        eq=eq["equipment_id"],
+        chamber=chamber or "메인 챔버",
+        shift=rng.choice(SHIFTS),
+    )
+
+
+def _lot_phrase(eq, rng):
+    return rng.choice(LOT_PHRASES).format(
+        type=eq["type"],
+        n=rng.randint(1, 99),
+    )
+
+
+def _join_clauses(parts):
+    # 빈 항목 제거 + 공백 정리 + 마침표 보장
+    # 단, 쉼표로 끝나는 절은 다음 절과 자연스럽게 연결되도록 그대로 둠.
+    cleaned = []
+    for p in parts:
+        if not p:
+            continue
+        p = p.strip()
+        if p.endswith(","):
+            cleaned.append(p)
+            continue
+        if not p.endswith((".", "?", "!", "다", "요")):
+            p = p + "."
+        cleaned.append(p)
+    return " ".join(cleaned)
+
+
+def _slice_core(core, length_class):
+    """core 문자열을 문장 단위로 분할 후 length_class 에 맞춰 길이 조절."""
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", core.strip()) if s.strip()]
+    if not sentences:
+        return core
+    if length_class == "short":
+        return sentences[0]
+    if length_class == "medium":
+        return " ".join(sentences[:2]) if len(sentences) >= 2 else sentences[0]
+    return " ".join(sentences)
+
+
+def _expand_clauses(rng, length_class, opener, core, ask):
+    """length_class 별로 보강 절을 삽입하여 본문 생성.
+
+    목표 길이:
+      short  ~ 60-100자  : opener + core_1sent + ask
+      medium ~ 120-250자 : opener + time + core_1sent + ask
+      long   ~ 250-400자 : opener + time + core_full + attempt + ask
+    """
+    if length_class == "short":
+        return _join_clauses([opener, _slice_core(core, "short"), ask])
+    if length_class == "medium":
+        time_p = rng.choice(TIME_PHRASES) + " 발생한 상황이고,"
+        return _join_clauses([opener, time_p, _slice_core(core, "short"), ask])
+    # long — core 전체 + 보강 절 2개
+    time_p = rng.choice(TIME_PHRASES) + " 발생한 상황이고,"
+    attempt_p = rng.choice(ATTEMPT_PHRASES_GENERIC)
+    return _join_clauses([opener, time_p, _slice_core(core, "long"), attempt_p, ask])
+
+
+# -----------------------------------------------------------------------------
+# 카테고리별 본문 빌더
+# -----------------------------------------------------------------------------
+
+def _build_alarm_cause(ac, eq, user, priority, rng, length_class):
+    title = rng.choice([
+        f"{ac['alarm_code']} 발생 — 원인이 궁금합니다",
+        f"{eq['equipment_id']}에서 {ac['alarm_code']} 알람, 원인 가능성 문의",
+        f"{ac['alarm_code']} 원인 진단 자문 요청 ({eq['equipment_id']})",
+    ])
+    opener = _persona_opener(user, eq, rng)
+    causes_text = ac["typical_causes"].replace("|", ", ")
+    core = (
+        f"{ac['alarm_code']}({ac['name']}, severity {ac['severity']}) 알람이 떴는데, "
+        f"임계치 조건은 '{ac['threshold_text']}' 로 알고 있습니다. "
+        f"이 알람의 일반적 원인으로는 {causes_text} 정도가 알람코드설명서에 적혀 있는데, "
+        f"우리 설비({eq['equipment_id']}, vendor {eq['vendor']}, {eq['install_year']}년 설치) "
+        f"환경에서 어떤 원인이 가장 가능성 높은지 의견 주시면 좋겠습니다"
+    )
+    ask = rng.choice(CLOSING_PHRASES[priority])
+    return title, _expand_clauses(rng, length_class, opener, core, ask)
+
+
+def _build_alarm_action(ac, eq, user, priority, rng, length_class):
+    title = rng.choice([
+        f"{ac['alarm_code']} 발생, 조치 절차 안내 부탁드립니다",
+        f"{eq['equipment_id']}에서 {ac['alarm_code']} — 어떤 순서로 점검하면 되나요",
+        f"{ac['alarm_code']} 표준 대응 절차 확인 요청",
+    ])
+    opener = _persona_opener(user, eq, rng)
+    sop = ac["related_sop_id"] or "관련 SOP"
+    lot_p = _lot_phrase(eq, rng)
+    core = (
+        f"{ac['alarm_code']}({ac['name']}) 알람이 발생해서 챔버 상태를 확인했고, "
+        f"{lot_p} 임계치 조건은 '{ac['threshold_text']}'이라 spec 이탈은 분명합니다. "
+        f"관련 SOP는 {sop}으로 알고 있는데 단계별 점검 순서와, "
+        f"단계별 fail 시 escalation 기준을 함께 안내해 주시면 좋겠습니다"
+    )
+    ask = rng.choice(CLOSING_PHRASES[priority])
+    return title, _expand_clauses(rng, length_class, opener, core, ask)
+
+
+def _build_alarm_meaning(ac, eq, user, priority, rng, length_class):
+    title = rng.choice([
+        f"{ac['alarm_code']} 알람의 의미가 궁금합니다",
+        f"{ac['alarm_code']}은 어떤 상태에서 뜨는 알람인가요",
+        f"{ac['alarm_code']} 정의 및 임계치 확인 요청",
+    ])
+    opener = _persona_opener(user, eq, rng)
+    core = (
+        f"{ac['alarm_code']} 알람이 처음 보는 코드라 정확한 의미를 알고 싶습니다. "
+        f"카테고리는 {ac['category']}, severity는 {ac['severity']}로 표시되어 있는데 "
+        f"이 알람이 정확히 어떤 상태에서 발생하는지, "
+        f"임계치 조건과 우리 설비 타입({eq['type']})에 적용 가능한지 알람코드설명서 §{ac['section_id']}를 인용해서 알려주세요"
+    )
+    ask = rng.choice(CLOSING_PHRASES[priority])
+    return title, _expand_clauses(rng, length_class, opener, core, ask)
+
+
+def _build_trend_chart(eq, user, priority, rng, length_class):
+    sub_issues = [
+        ("일부 구간이 끊어져 보입니다", "특정 SVID 1~3개 구간이 결손되어 보이고 나머지는 정상이라"),
+        ("차트가 통째로 비어 있습니다", "선택한 7일 기간 동안 모든 SVID에 데이터가 없어 보이고"),
+        ("조회 시 timeout이 발생합니다", "조회를 누르면 30초 이상 대기 후 timeout이 뜨고 차트는 그려지지 않으며"),
+        ("최신 데이터가 1시간 전 이후로 갱신되지 않습니다", "최신 timestamp가 1시간 이상 멈춰 있는 것으로 보이고"),
+    ]
+    sym_title, sym_desc = rng.choice(sub_issues)
+    title = f"{eq['equipment_id']} Trend Chart {sym_title}"
+    opener = _persona_opener(user, eq, rng)
+    core = (
+        f"{eq['equipment_id']} Trend Chart를 열어 봤는데 {sym_title}. {sym_desc} "
+        f"수집 누락인지 DAQ 이슈인지 통신 단절(COMM-W-001/002) 영향인지 구분이 안 되어, "
+        f"어떤 순서로 진단해야 하는지 시스템사용매뉴얼 §SM-TRD-002와 FAQ-002 내용을 토대로 안내 부탁드립니다"
+    )
+    ask = rng.choice(CLOSING_PHRASES[priority])
+    return title, _expand_clauses(rng, length_class, opener, core, ask)
+
+
+def _build_data_missing(eq, user, priority, rng, length_class):
+    title = f"{eq['equipment_id']} 어제 일부 시간대 데이터 누락 확인 요청"
+    opener = _persona_opener(user, eq, rng)
+    core = (
+        f"{eq['equipment_id']} 어제 자정~새벽 4시 구간의 sensor 데이터가 비어 있는 것 같습니다. "
+        f"같은 시간대 다른 설비는 정상으로 보이는데 우리 설비만 누락된 상태라, "
+        f"통신 단절 이벤트가 있었는지, DAQ 모듈 jitter(COMM-W-002)에 해당하는지, "
+        f"아니면 해당 구간에 PM이 있었는지 확인 부탁드립니다"
+    )
+    ask = rng.choice(CLOSING_PHRASES[priority])
+    return title, _expand_clauses(rng, length_class, opener, core, ask)
+
+
+def _build_threshold(ac, user, priority, rng, length_class):
+    delta = rng.choice(["+5%", "+10%", "-5%", "-10%"])
+    title = rng.choice([
+        f"{ac['alarm_code']} 임계치 {delta} 조정 검토 요청",
+        f"{ac['alarm_code']} false alarm이 많아 임계치 재검토 필요",
+        f"임계치 변경 신청 — {ac['alarm_code']}",
+    ])
+    opener = _persona_opener(user, {"equipment_id": "[해당 없음]", "type": ac["category"], "vendor": "-", "install_year": "-", "chambers": ""}, rng)
+    core = (
+        f"{ac['alarm_code']}({ac['name']}) 알람이 최근 30일 동안 빈번하게 발생하고 있는데, "
+        f"실제 공정 영향이 미미한 false alarm 비율이 높은 것으로 분석됩니다. "
+        f"현재 임계치 '{ac['threshold_text']}'를 {delta} 수준으로 조정 검토하고 싶습니다. "
+        f"신청 절차(POL-CHG-001)와 승인 권한(POL-PERM-002), 필요한 정량 근거 양식을 안내 부탁드립니다"
+    )
+    ask = rng.choice(CLOSING_PHRASES[priority])
+    return title, _expand_clauses(rng, length_class, opener, core, ask)
+
+
+def _build_status_mismatch(eq, user, priority, rng, length_class):
+    title = f"{eq['equipment_id']} 대시보드 상태와 실제 가동 상태 불일치"
+    opener = _persona_opener(user, eq, rng)
+    core = (
+        f"{eq['equipment_id']} 대시보드에는 IDLE로 표시되어 있는데 현장 콘솔에서는 lot이 정상 진행 중입니다. "
+        f"반대로 어제는 대시보드에 PRODUCTION으로 떠 있었는데 실제로는 PM 중이었던 적도 있어, "
+        f"통신 단절(COMM-W-001/W-002) 또는 SECS/GEM 응답 지연(COMM-M-001) 영향으로 추정됩니다. "
+        f"FAQ-003 안내와 함께 임시 조치와 재발 방지 대응을 알려주세요"
+    )
+    ask = rng.choice(CLOSING_PHRASES[priority])
+    return title, _expand_clauses(rng, length_class, opener, core, ask)
+
+
+def _build_permission(user, priority, rng, length_class):
+    actions = [
+        ("Trend CSV 다운로드 버튼이 비활성화되어 있습니다", "Trend CSV export"),
+        ("Recipe 조회 메뉴 자체가 좌측 사이드바에 보이지 않습니다", "Recipe 조회"),
+        ("알람 임계치 변경 신청 버튼을 눌렀더니 권한 부족이라고 합니다", "임계치 변경 신청"),
+        ("VOC 일괄 처리 화면에 접근이 안 됩니다", "VOC 일괄 처리"),
+    ]
+    sym, action_label = rng.choice(actions)
+    title = f"권한 부족 — {action_label}"
+    opener = rng.choice([
+        f"{user['name']}({user['role']}) 입니다.",
+        f"{user['team']} 소속 {user['role']}입니다.",
+        f"오늘 화면 조작 중 막혀서 문의드립니다.",
+    ])
+    core = (
+        f"{sym}. 본인 역할은 {user['role']}이고 평소에는 동일 메뉴를 사용해 왔는데, "
+        f"오늘부터 갑자기 권한 부족 메시지가 표시되는 상황입니다. "
+        f"POL-PERM-001 권한 매트릭스 기준 본인 역할의 가능 작업과, "
+        f"권한 변경/복구 신청 절차(POL-ACC-001)를 안내 부탁드립니다"
+    )
+    ask = rng.choice(CLOSING_PHRASES[priority])
+    return title, _expand_clauses(rng, length_class, opener, core, ask)
+
+
+def _build_login(user, priority, rng, length_class):
+    issues = [
+        ("로그인 시 권한 없음 메시지가 뜹니다", "ID/PW는 사내 SSO와 동기화되어 있다고 알고 있는데"),
+        ("OTP 인증이 계속 실패합니다", "OTP 앱의 시간 동기화는 최근에 맞췄는데도"),
+        ("계정이 잠겼다는 메시지가 표시됩니다", "비밀번호 변경 주기 알림은 받지 못했는데"),
+    ]
+    sym, hint = rng.choice(issues)
+    title = f"시스템 접속 오류 — {sym}"
+    opener = rng.choice([
+        f"{user['team']} {user['name']}({user['role']}) 입니다.",
+        f"오늘 출근 직후 접속이 안 되어 문의드립니다.",
+        f"외부 출장에서 복귀 후 처음 접속을 시도 중입니다.",
+    ])
+    core = (
+        f"{sym}. {hint} 동일 증상이 재현됩니다. "
+        f"FAQ-001 권한·계정 관련 안내와 SM-LOGIN-001 매뉴얼을 기준으로 "
+        f"본인 계정 상태 확인 절차와, 잠금 해제/재등록 신청 경로를 알려주세요"
+    )
+    ask = rng.choice(CLOSING_PHRASES[priority])
+    return title, _expand_clauses(rng, length_class, opener, core, ask)
+
+
+def _build_voc_status(user, priority, rng, length_class):
+    days = rng.randint(1, 5)
+    title = rng.choice([
+        f"등록 후 {days}일 지난 VOC 처리 상태 문의",
+        "내 VOC 화면에서 상태가 바뀌지 않습니다",
+        "이전에 등록한 VOC들의 현재 단계 일괄 확인 요청",
+    ])
+    opener = rng.choice([
+        f"{user['name']}({user['role']}) 입니다.",
+        f"{user['team']} 소속 운영자입니다.",
+        f"FDC 시스템 사용자 기준으로 문의드립니다.",
+    ])
+    core = (
+        f"제가 {days}일 전 등록한 VOC가 아직 OPEN/IN_PROGRESS 단계에서 변동이 없어 보입니다. "
+        f"POL-SLA-001 기준 NORMAL 우선순위의 1차 응답 시간은 4시간으로 알고 있는데, "
+        f"현재 단계 의미(OPEN/IN_PROGRESS/RESOLVED/CLOSED), "
+        f"단계별 표준 처리 시간, SLA 초과 시 자동 escalation 여부를 SM-VOC-002와 함께 안내해 주세요"
+    )
+    ask = rng.choice(CLOSING_PHRASES[priority])
+    return title, _expand_clauses(rng, length_class, opener, core, ask)
+
+
+CATEGORY_BUILDERS = {
+    "알람 원인 문의": _build_alarm_cause,
+    "조치 방법 문의": _build_alarm_action,
+    "알람 코드 의미 문의": _build_alarm_meaning,
+    "Trend Chart 조회 오류": _build_trend_chart,
+    "데이터 누락 문의": _build_data_missing,
+    "임계치 설정 문의": _build_threshold,
+    "설비 상태 불일치": _build_status_mismatch,
+    "권한 문제": _build_permission,
+    "시스템 접속 오류": _build_login,
+    "VOC 처리 상태 문의": _build_voc_status,
+}
+
+# 카테고리별로 alarm_code 필드가 본문에서 명시되는지 여부 (CSV 마스터 매칭용)
+_CAT_USES_ALARM_CODE = {
+    "알람 원인 문의", "조치 방법 문의", "알람 코드 의미 문의", "임계치 설정 문의",
+}
+_CAT_USES_EQUIPMENT = {
+    "알람 원인 문의", "조치 방법 문의", "알람 코드 의미 문의",
+    "Trend Chart 조회 오류", "데이터 누락 문의", "설비 상태 불일치",
 }
 
 
 def generate_filler_vocs(sot, equipment_rows, user_rows, alarm_code_rows, start_seq):
-    """is_core=False 70건 생성."""
+    """is_core=False 70건 생성 — 페르소나·시간·사전 시도 조합 + 길이 혼합 분포."""
     seed = sot["meta"]["generation_seed"] + 2
     rng = random.Random(seed)
 
-    # 분포 — 카테고리별 건수
     distribution = {
         "알람 원인 문의": 10, "조치 방법 문의": 7, "Trend Chart 조회 오류": 7,
         "데이터 누락 문의": 5, "임계치 설정 문의": 5, "설비 상태 불일치": 5,
@@ -730,26 +1070,36 @@ def generate_filler_vocs(sot, equipment_rows, user_rows, alarm_code_rows, start_
     rows = []
     seq = start_seq
     for cat, count in distribution.items():
-        templates = FILLER_TEMPLATES.get(cat, FILLER_TEMPLATES["알람 코드 의미 문의"])
+        builder = CATEGORY_BUILDERS[cat]
         for _ in range(count):
-            t_pair = rng.choice(templates)
             user = rng.choice(user_rows)
             ac = rng.choice(alarm_code_rows)
             eq_candidates = [e for e in equipment_rows if eq_supports_alarm(e, ac)]
             eq = rng.choice(eq_candidates) if eq_candidates else rng.choice(equipment_rows)
             voc_id = f"VOC-2026-{seq:04d}"
             ts = start_date + timedelta(seconds=rng.randint(0, duration * 86400))
+            length_class = _pick_length_class(rng)
+            priority = rng.choices(
+                ["LOW", "NORMAL", "HIGH", "URGENT"],
+                weights=[0.20, 0.55, 0.20, 0.05],
+            )[0]
 
-            ac_code = ac["alarm_code"] if "{ac}" in t_pair[0] + t_pair[1] else ""
-            title = t_pair[0].format(ac=ac["alarm_code"], eq=eq["equipment_id"], voc_id=voc_id)
-            content = t_pair[1].format(
-                ac=ac["alarm_code"], eq=eq["equipment_id"], voc_id=voc_id,
-                causes=ac["typical_causes"].replace("|", ", "),
-                category=ac["category"],
-                sop=ac["related_sop_id"] or "관련 SOP",
-                sev=ac["severity"], section=ac["section_id"],
-            )
-            content = f"{content} (요청자: {user['name']} / {user['role']})"
+            # builder 호출 — 카테고리에 따라 인자 분기
+            if cat in {"알람 원인 문의", "조치 방법 문의", "알람 코드 의미 문의"}:
+                title, content = builder(ac, eq, user, priority, rng, length_class)
+            elif cat == "임계치 설정 문의":
+                title, content = builder(ac, user, priority, rng, length_class)
+            elif cat in {"Trend Chart 조회 오류", "데이터 누락 문의", "설비 상태 불일치"}:
+                title, content = builder(eq, user, priority, rng, length_class)
+            elif cat in {"권한 문제", "시스템 접속 오류"}:
+                title, content = builder(user, priority, rng, length_class)
+            elif cat == "VOC 처리 상태 문의":
+                title, content = builder(user, priority, rng, length_class)
+            else:
+                title, content = builder(ac, eq, user, priority, rng, length_class)
+
+            ac_code = ac["alarm_code"] if cat in _CAT_USES_ALARM_CODE else ""
+            eq_id = eq["equipment_id"] if cat in _CAT_USES_EQUIPMENT else ""
 
             rows.append({
                 "voc_id": voc_id,
@@ -757,11 +1107,10 @@ def generate_filler_vocs(sot, equipment_rows, user_rows, alarm_code_rows, start_
                 "content": content,
                 "user_role": user["role"],
                 "user_id": user["user_id"],
-                "equipment_id": eq["equipment_id"] if "{eq}" in t_pair[0] + t_pair[1] else "",
+                "equipment_id": eq_id,
                 "alarm_code": ac_code,
                 "category": cat,
-                "priority": rng.choices(["LOW", "NORMAL", "HIGH", "URGENT"],
-                                        weights=[0.20, 0.55, 0.20, 0.05])[0],
+                "priority": priority,
                 "created_at": ts.strftime("%Y-%m-%d %H:%M:%S"),
                 "is_core": False,
                 "difficulty": "filler",
@@ -771,6 +1120,330 @@ def generate_filler_vocs(sot, equipment_rows, user_rows, alarm_code_rows, start_
                 "expected_answer": "",
             })
             seq += 1
+    return rows
+
+
+# =============================================================================
+# Hard 확장 15건 — symptom_keywords + root_cause_tags 기반 자연어 VOC
+#   - alarm_code 미명시 (증상만 서술)
+#   - is_core=True, difficulty='hard'
+# =============================================================================
+
+HARD_EXTENSION_SPECS = [
+    {
+        "target_alarm": "TEMP-M-001",
+        "target_sop": "SOP-TEMP-002",
+        "title": "챔버 가열 ramp가 평소보다 한참 늦습니다",
+        "symptom_paragraph": (
+            "지난주까지는 idle에서 setpoint 도달까지 약 4분이면 충분했는데, "
+            "오늘은 같은 recipe로도 6분 가까이 걸리고 있습니다. "
+            "온도 ramp 그래프를 보면 초반 1/3 구간은 정상이고 후반에서 기울기가 눈에 띄게 완만해지며, "
+            "히터 출력은 최대치 근처에서 더 올라가지 못하는 것처럼 보입니다. "
+            "TC 응답이 늦어진 것 같다는 의심도 있어 보조 TC와 메인 TC 값을 비교해 봤는데 차이가 평소보다 큽니다."
+        ),
+        "key_points": [
+            "TEMP-M-001 (가열 속도 이상, ramp ±15% 초과) 가능성",
+            "원인: 히터 출력 저하 / TC 응답 지연",
+            "SOP-TEMP-002 절차 안내",
+        ],
+        "primary_eq_types": ["CVD", "FUR", "RTP"],
+    },
+    {
+        "target_alarm": "MECH-W-001",
+        "target_sop": None,
+        "title": "터보펌프 쪽에서 평소와 다른 진동이 느껴집니다",
+        "symptom_paragraph": (
+            "정비 순회 중 {eq} 터보펌프 하우징에서 평소에 못 느끼던 미세 진동이 손끝에 전해집니다. "
+            "진동 RMS 추이를 보면 baseline 대비 1.5배 정도 올라와 있고, "
+            "별도 알람은 아직 안 뜨고 있지만 베어링 마모 초기 증상 같은 느낌입니다. "
+            "지금 단독 조치가 필요한 수준인지, 아니면 정기 PM 시까지 모니터링만 해도 되는지 판단을 부탁드립니다."
+        ),
+        "key_points": [
+            "MECH-W-001 (진동 센서 경고) 가능성 — KB orphan",
+            "원인: 베어링 마모 초기",
+            "POL-SCOPE-001에 따라 KB 단독 조치 절차 없음 — Trend 모니터링 권장",
+        ],
+        "primary_eq_types": ["CVD", "PVD", "DRY", "POL"],
+    },
+    {
+        "target_alarm": "RF-M-001",
+        "target_sop": "SOP-RF-002",
+        "title": "Auto-tune이 끝나도 반사파가 6~7% 정도 잔존합니다",
+        "symptom_paragraph": (
+            "{eq}에서 plasma ignition 후 Auto-tune이 완료된 시점에도 "
+            "Reflected/Forward 비율이 6~7% 정도로 가라앉지 않고 있습니다. "
+            "어제까지는 동일 recipe에서 1~2% 이내였는데, 오늘 첫 vent 후 가동부터 이 양상이 시작됐고, "
+            "tune cap 위치 추이를 보니 점점 끝단 쪽으로 이동 중인 것이 마음에 걸립니다. "
+            "수동 fine-tune으로 일시 회복은 되지만, 다음 lot에서 또 같은 증상이 재발할까 우려됩니다."
+        ),
+        "key_points": [
+            "RF-M-001 (Auto-tune 후 reflected > 5% 잔존) 가능성",
+            "원인: 부하 변동 / tune cap 노후",
+            "SOP-RF-002 절차 안내",
+        ],
+        "primary_eq_types": ["CVD", "PVD", "DRY"],
+    },
+    {
+        "target_alarm": "MECH-H-001",
+        "target_sop": "SOP-MECH-001",
+        "title": "EFEM 로봇이 wafer를 자주 놓칩니다",
+        "symptom_paragraph": (
+            "{eq}에서 오전부터 EFEM 로봇이 FOUP 슬롯 #14, #15 wafer를 잡았다가 transfer 중간에 흔들리는 현상이 두 번 있었습니다. "
+            "한 번은 자동으로 retry가 성공했지만 한 번은 mapping 단계에서 wafer 인식 실패로 lot이 멈춰 있고, "
+            "vacuum chuck 흡착 압력이 평소 대비 미세하게 떨어진 것으로 보입니다. "
+            "wafer 회수 절차와, 같은 증상이 재발하지 않게 하기 위한 1차 점검 항목을 알려주세요."
+        ),
+        "key_points": [
+            "MECH-H-001 (EFEM 로봇 wafer mapping/transfer 실패) 가능성",
+            "원인: wafer 위치 이상 / vacuum chuck 흡착 불량",
+            "SOP-MECH-001 절차 안내",
+        ],
+        "primary_eq_types": ["CVD", "PVD", "DRY", "SCN", "HCI", "MCI", "POL", "CLN", "MES", "INS"],
+    },
+    {
+        "target_alarm": "MECH-M-001",
+        "target_sop": "SOP-MECH-002",
+        "title": "슬릿밸브 open/close 동작이 평소보다 느립니다",
+        "symptom_paragraph": (
+            "{eq}의 transfer chamber 슬릿밸브가 open/close 명령 후 정상 응답까지 0.7~0.8초 정도 걸리고 있습니다. "
+            "spec은 ±0.5초인데 이미 spec을 살짝 넘어선 상태이고, "
+            "공압 라인 게이지 압력이 평소 대비 약간 낮은 것 같습니다. "
+            "센서 노후 가능성도 있을 것 같은데, 어떤 순서로 점검해야 하는지 안내 부탁드립니다."
+        ),
+        "key_points": [
+            "MECH-M-001 (슬릿밸브 동작 이상) 가능성",
+            "원인: 공압 라인 압력 저하 / 센서 노후",
+            "SOP-MECH-002 절차 안내",
+        ],
+        "primary_eq_types": ["CVD", "PVD", "DRY", "HCI", "MCI"],
+    },
+    {
+        "target_alarm": "VAC-H-001",
+        "target_sop": "SOP-VAC-001",
+        "title": "base pressure가 목표 1e-6 Torr에 도달하지 못합니다",
+        "symptom_paragraph": (
+            "{eq} 오늘 첫 가동에서 base pressure가 5e-6 Torr 부근에서 더 떨어지지 않고 머물러 있습니다. "
+            "어제 PM 후 첫 가동이라 chamber outgassing 영향일 가능성도 생각해 보고 있는데, "
+            "터보펌프 회전수는 정상으로 보입니다. "
+            "현재 상태로 lot 시작해도 되는지, 아니면 추가 baking이 필요한지 판단해 주세요."
+        ),
+        "key_points": [
+            "VAC-H-001 (진공도 미달 High, base pressure > 5e-6 Torr) 가능성",
+            "원인: 펌프 성능 저하 / 챔버 outgassing",
+            "SOP-VAC-001 절차 안내",
+        ],
+        "primary_eq_types": ["CVD", "PVD", "DRY", "HCI", "MCI"],
+    },
+    {
+        "target_alarm": "VAC-W-001",
+        "target_sop": "SOP-VAC-002",
+        "title": "vent 후 base pressure 회복까지 시간이 점점 길어집니다",
+        "symptom_paragraph": (
+            "{eq}에서 vent → pump down → base pressure 도달까지의 시간이 baseline 대비 20% 정도 길어진 추세가 일주일째 이어지고 있습니다. "
+            "회복 시간 trend가 우상향으로 천천히 올라가고 있어 펌프 성능 저하 초기 징후가 아닐까 의심됩니다. "
+            "정기 PM은 한 달 뒤로 잡혀 있는데, 그때까지 모니터링만 해도 되는지 확인 부탁드립니다."
+        ),
+        "key_points": [
+            "VAC-W-001 (진공 회복 지연) 가능성",
+            "원인: 펌프 성능 저하 초기",
+            "SOP-VAC-002 절차 안내 (모니터링 및 PM 일정 검토)",
+        ],
+        "primary_eq_types": ["CVD", "PVD", "DRY"],
+    },
+    {
+        "target_alarm": "COMM-W-001",
+        "target_sop": "SOP-COMM-001",
+        "title": "T3 timeout이 하루 5~6회 발생합니다 (자동 복구는 됨)",
+        "symptom_paragraph": (
+            "{eq}와 호스트 간 SECS 통신에서 T3 timeout이 하루 5~6회 발생하고 있습니다. "
+            "매번 자동 재시도로 복구는 되고 있어 큰 문제는 없지만, "
+            "이전 주까지는 하루 1회 정도였던 것이 갑자기 늘어난 것이 신경 쓰입니다. "
+            "네트워크 미세 지연 이상의 원인이 있는지, 별도 조치가 필요한지 확인 부탁드립니다."
+        ),
+        "key_points": [
+            "COMM-W-001 (호스트 통신 재시도 Warning) 가능성",
+            "원인: 네트워크 미세 지연",
+            "SOP-COMM-001 / FAQ-003 안내",
+        ],
+        "primary_eq_types": ["CVD", "PVD", "DRY", "WET", "SCN", "CTR", "FUR", "RTP", "HCI", "MCI", "POL", "CLN", "MES", "INS"],
+    },
+    {
+        "target_alarm": "COMM-W-002",
+        "target_sop": None,
+        "title": "Trend Chart에 짧은 공백 구간이 자주 보입니다",
+        "symptom_paragraph": (
+            "{eq}의 Trend Chart를 보면 1~2초 정도의 짧은 데이터 결손 구간이 한 시간에 두세 번 정도 보입니다. "
+            "별도 알람은 뜨지 않고 있고 다른 SVID도 동시에 끊기는 것으로 보아 DAQ 모듈 jitter 같은데, "
+            "이게 정상 범주인지, 조치가 필요한 수준인지 판단해 주세요. "
+            "FAQ-002와 FAQ-003 둘 중 어느 쪽에 가까운 사례인지도 알려주시면 좋겠습니다."
+        ),
+        "key_points": [
+            "COMM-W-002 (센서 통신 일시 단절 < 3초) 가능성 — FAQ로 위임",
+            "원인: DAQ 모듈 jitter",
+            "FAQ-002 / FAQ-003 안내",
+        ],
+        "primary_eq_types": ["CVD", "PVD", "DRY", "FUR", "RTP", "HCI", "MCI"],
+    },
+    {
+        "target_alarm": "FLOW-M-001",
+        "target_sop": "SOP-FLOW-001",
+        "title": "MFC setpoint 변경 후 도달 시간이 평소보다 깁니다",
+        "symptom_paragraph": (
+            "{eq}의 H2 MFC가 setpoint 변경 명령 후 ±5% 도달까지 4~5초가 걸리는 것 같습니다. "
+            "spec은 3초 이내라 spec 이탈 가능성이 있고, "
+            "Trend로 보면 setpoint 신호와 실측 flow 사이의 lag가 일정하지 않습니다. "
+            "MFC controller 노후일 수도 있고, 통신 지연 영향일 수도 있어 진단 순서를 안내해 주세요."
+        ),
+        "key_points": [
+            "FLOW-M-001 (MFC 응답 이상) 가능성",
+            "원인: MFC controller 노후 / 통신 지연",
+            "SOP-FLOW-001 절차 안내",
+        ],
+        "primary_eq_types": ["CVD", "DRY"],
+    },
+    {
+        "target_alarm": "CHEM-W-001",
+        "target_sop": "SOP-CHEM-001",
+        "title": "케미컬 탱크 잔량이 평소보다 빨리 줄어듭니다",
+        "symptom_paragraph": (
+            "{eq}의 HF 케미컬 탱크 잔량이 평소보다 빠르게 줄고 있어 이번 주에만 두 번이나 20% 미만 경고가 떴습니다. "
+            "사용량이 갑자기 늘었다는 공정팀 보고는 없는데 같은 recipe에서 소모량이 늘어난 것 같아 신경 쓰입니다. "
+            "정상 범주의 사용량 증가인지, 라인 leak 가능성도 함께 검토해야 하는지 안내 부탁드립니다."
+        ),
+        "key_points": [
+            "CHEM-W-001 (케미컬 보충 필요) 가능성",
+            "원인: 사용량 증가",
+            "SOP-CHEM-001 / FAQ-004 안내",
+        ],
+        "primary_eq_types": ["WET", "POL", "CLN", "CTR"],
+    },
+    {
+        "target_alarm": "HV-W-001",
+        "target_sop": None,
+        "title": "Implanter HV ramp time이 평소보다 길어 보입니다",
+        "symptom_paragraph": (
+            "{eq}의 0 → setpoint HV ramp time이 baseline 대비 20% 정도 길어 보입니다. "
+            "별도 alarm은 뜨지 않고 있고 trip도 발생하지 않았지만, "
+            "HV power supply 노후 초기 증상일 수 있을 것 같아 모니터링을 강화해야 할지 판단을 부탁드립니다. "
+            "단독 조치가 가능한 항목인지, 정기 PM 시 함께 점검할 사안인지도 알려주세요."
+        ),
+        "key_points": [
+            "HV-W-001 (고전압 RAMP 지연) 가능성 — KB orphan",
+            "원인: HV PS 노후",
+            "POL-SCOPE-001에 따라 KB 단독 조치 절차 없음 — Trend 모니터링 권장",
+        ],
+        "primary_eq_types": ["HCI", "MCI", "PVD"],
+    },
+    {
+        "target_alarm": "DOSE-W-001",
+        "target_sop": None,
+        "title": "post-implant 측정 완료까지 시간이 평소보다 늘었습니다",
+        "symptom_paragraph": (
+            "{eq}에서 implant 종료 후 post 측정 완료까지의 시간이 baseline 대비 5초 정도 일관되게 늘어났습니다. "
+            "라인 throughput에 즉시 영향이 가는 수준은 아니지만, "
+            "이 추세가 계속되면 일별 lot 처리량이 줄어드는 것이 우려됩니다. "
+            "단순한 measurement queue 적체인지, 단독 조치 가능한 항목인지 판단해 주세요."
+        ),
+        "key_points": [
+            "DOSE-W-001 (Dose 측정 지연) 가능성 — KB orphan",
+            "원인: measurement queue 적체",
+            "POL-SCOPE-001에 따라 KB 단독 조치 절차 없음 — Trend 모니터링 권장",
+        ],
+        "primary_eq_types": ["HCI", "MCI"],
+    },
+    {
+        "target_alarm": "PRES-M-001",
+        "target_sop": "SOP-PRES-001",
+        "title": "공정 압력이 평소보다 미세하게 출렁입니다",
+        "symptom_paragraph": (
+            "{eq}에서 공정 중 압력이 setpoint 근방에서 ±3~5% 정도 미세하게 출렁이는 패턴이 보입니다. "
+            "30초 이동 표준편차가 setpoint × 5% 부근에서 왔다갔다 하고 있어 PRES-M-001 알람이 곧 뜰 것 같은 양상입니다. "
+            "throttle valve 미세 진동인지, 가스 라인 진동인지 구분하려면 어떤 데이터를 확인해야 하는지 안내해 주세요."
+        ),
+        "key_points": [
+            "PRES-M-001 (압력 변동 이상, 30초 이동표준편차 > setpoint × 5%) 가능성",
+            "원인: 가스 라인 진동 / throttle 미세진동",
+            "SOP-PRES-001 절차 안내",
+        ],
+        "primary_eq_types": ["CVD", "PVD", "DRY"],
+    },
+    {
+        "target_alarm": "COMM-M-001",
+        "target_sop": "SOP-COMM-001",
+        "title": "MES 응답이 평소보다 느려졌습니다 (S6F11 5초 이상)",
+        "symptom_paragraph": (
+            "{eq} ↔ MES 사이의 S6F11 응답이 평소 1~2초였는데 오늘은 5~7초까지 늘어났습니다. "
+            "MES 측에서 다른 라인 동시 가동이 많아 host load가 높다는 이야기가 있는데, "
+            "buffer overflow가 보고된 것은 아닙니다. "
+            "이 상태에서 lot 진행을 계속해도 되는지, 임시 대응 절차가 있는지 SOP-COMM-001과 FAQ-007 기준으로 안내해 주세요."
+        ),
+        "key_points": [
+            "COMM-M-001 (SECS/GEM 응답 지연, S6F11 > 5초) 가능성",
+            "원인: host load 증가 / buffer overflow",
+            "SOP-COMM-001 / FAQ-007 안내",
+        ],
+        "primary_eq_types": ["CVD", "PVD", "DRY", "WET", "SCN", "CTR", "FUR", "RTP", "HCI", "MCI", "POL", "CLN", "MES", "INS"],
+    },
+]
+
+
+def generate_hard_extension_vocs(sot, equipment_rows, user_rows, alarm_code_rows, start_seq):
+    """Hard 확장 VOC 15건 — is_core=True, difficulty='hard'."""
+    seed = sot["meta"]["generation_seed"] + 3
+    rng = random.Random(seed)
+
+    start_date = datetime(2026, 4, 15)
+    end_date = datetime(2026, 5, 15)
+    duration = (end_date - start_date).days
+
+    code_lookup = {ac["alarm_code"]: ac for ac in alarm_code_rows}
+    eq_eng_candidates = [u for u in user_rows if u["role"] in ("EQ_ENG", "PROC_ENG")]
+
+    rows = []
+    seq = start_seq
+    for spec in HARD_EXTENSION_SPECS:
+        ac = code_lookup[spec["target_alarm"]]
+        eq_candidates = [
+            e for e in equipment_rows
+            if e["type"] in spec["primary_eq_types"]
+        ]
+        eq = rng.choice(eq_candidates) if eq_candidates else rng.choice(equipment_rows)
+        user = rng.choice(eq_eng_candidates)
+        voc_id = f"VOC-2026-{seq:04d}"
+        ts = start_date + timedelta(seconds=rng.randint(0, duration * 86400))
+        priority = rng.choices(
+            ["NORMAL", "HIGH"],
+            weights=[0.6, 0.4],
+        )[0]
+
+        opener = _persona_opener(user, eq, rng)
+        symptom = spec["symptom_paragraph"].format(eq=eq["equipment_id"])
+        ask = rng.choice(CLOSING_PHRASES[priority])
+        content = _join_clauses([opener, symptom, ask])
+
+        hints = [f"alarm_code_guide.md#sec-{ac['section_id']}"]
+        if spec["target_sop"]:
+            hints.append(f"troubleshooting_guide.md#sec-{spec['target_sop']}")
+
+        rows.append({
+            "voc_id": voc_id,
+            "title": spec["title"],
+            "content": content,
+            "user_role": user["role"],
+            "user_id": user["user_id"],
+            "equipment_id": eq["equipment_id"],
+            "alarm_code": "",   # Hard VOC: 증상만 기술, 코드 미명시
+            "category": "조치 방법 문의",
+            "priority": priority,
+            "created_at": ts.strftime("%Y-%m-%d %H:%M:%S"),
+            "is_core": True,
+            "difficulty": "hard",
+            "expected_refusal": False,
+            "source_document_hint": hints,
+            "expected_key_points": spec["key_points"],
+            "expected_answer": "",
+        })
+        seq += 1
     return rows
 
 
@@ -813,9 +1486,15 @@ def main():
     alarm_code_rows = load_csv(DB_DIR / "alarm_code_master.csv")
 
     core = list(CORE_VOCS)
-    fillers = generate_filler_vocs(sot, equipment_rows, user_rows, alarm_code_rows,
-                                   start_seq=len(core) + 1)
-    all_vocs = core + fillers
+    hard_extra = generate_hard_extension_vocs(
+        sot, equipment_rows, user_rows, alarm_code_rows,
+        start_seq=len(core) + 1,
+    )
+    fillers = generate_filler_vocs(
+        sot, equipment_rows, user_rows, alarm_code_rows,
+        start_seq=len(core) + len(hard_extra) + 1,
+    )
+    all_vocs = core + hard_extra + fillers
 
     # JSON
     VOC_DIR.mkdir(parents=True, exist_ok=True)
@@ -824,8 +1503,11 @@ def main():
             "total": len(all_vocs),
             "core_count": sum(1 for v in all_vocs if v.get("is_core")),
             "filler_count": sum(1 for v in all_vocs if not v.get("is_core")),
+            "hard_extra_count": len(hard_extra),
         }}, f, ensure_ascii=False, indent=2)
-    print(f"  [OK] voc_samples.json  ({len(all_vocs)} entries, core={len(core)})")
+    print(f"  [OK] voc_samples.json  ({len(all_vocs)} entries, "
+          f"core={len(core) + len(hard_extra)} [orig 30 + hard 15], "
+          f"filler={len(fillers)})")
 
     # CSV (평탄화: 리스트 필드는 |로 join)
     fieldnames = [

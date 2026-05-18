@@ -1,0 +1,65 @@
+# =============================================================================
+# Intents — recommended_questions 의 target_intent 마스터
+# -----------------------------------------------------------------------------
+# 본 파일은 source_of_truth.yaml 의 recommended_questions[].target_intent
+# 가 가리킬 수 있는 유효 intent 의 단일 진실 공급원이다.
+#
+# 규칙:
+#   - 각 항목은 KB 인용(target_section_id)이 아닌 구조화 쿼리/UI 액션으로 연결된다.
+#   - validate_integrity.py [G4] 가 본 파일의 id 집합과 SOT 사용처를 대조하며
+#     마스터에 없는 intent 사용 시 FAIL.
+#
+# handler 의미:
+#   - structured_query : agent 가 DB(alarm_history, equipment_master 등)에 SQL/필터 조회
+#   - ui_action        : 프론트엔드가 폼·차트·외부 링크 등 UI 컴포넌트로 분기
+# =============================================================================
+
+version: 1.0
+generated_for: "Multi-turn follow-up routing"
+
+intents:
+  - id: alarm_history_query
+    handler: structured_query
+    name_ko: 알람 이력 조회
+    description: |
+      특정 alarm_code · equipment_id · 기간 조건으로 alarm_history 테이블 조회.
+      예) "최근 7일 동안 THIN-CVD-02 에서 TEMP-H-001 몇 번 발생?"
+
+  - id: equipment_status_query
+    handler: structured_query
+    name_ko: 설비 상태 조회
+    description: |
+      equipment_master 의 status / location / 최근 alarm 요약 조회.
+      예) "DIFF-FUR-03 지금 가동 상태야?"
+
+  - id: voc_history_query
+    handler: structured_query
+    name_ko: VOC 이력 조회
+    description: |
+      voc_history 에서 동일 alarm_code / equipment 의 과거 VOC 검색.
+      예) "이 알람 코드로 작년에 등록된 VOC 있어?"
+
+  - id: trend_chart_view
+    handler: ui_action
+    name_ko: Trend 차트 보기
+    description: |
+      특정 SVID 의 추세 차트를 UI 컴포넌트로 띄움.
+      예) "온도 추세 그래프 보여줘"
+
+  - id: threshold_change_request
+    handler: ui_action
+    name_ko: 임계치 변경 신청 폼
+    description: |
+      POL-CHG-001 절차에 따른 임계치 변경 신청 폼으로 이동.
+
+  - id: vendor_escalation_form
+    handler: ui_action
+    name_ko: 벤더 escalation 티켓 발행
+    description: |
+      POL-ESC-002 / SOP-ESC-001 절차에 따라 벤더 기술지원 티켓 발행 안내.
+
+  - id: out_of_scope
+    handler: ui_action
+    name_ko: KB 범위 외 — 거절 안내
+    description: |
+      POL-SCOPE-001 에 정의된 KB 범위 외 질문에 대한 정중한 거절 응답.

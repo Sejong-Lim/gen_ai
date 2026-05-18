@@ -1,0 +1,267 @@
+# =============================================================================
+# Root Cause Tags — 마스터 분류 체계
+# -----------------------------------------------------------------------------
+# 본 파일은 source_of_truth.yaml 의 alarm_codes / sops 에서 사용되는
+# `root_cause_tags` 의 단일 진실 공급원이다.
+#
+# 규칙:
+#   - 모든 tag 는 snake_case (ASCII) 로 작성한다.
+#   - 동의어/유사 표현은 한 tag 로 통합하여 임베딩 분기를 막는다.
+#   - validate_integrity.py [G2] 가 본 파일의 id 집합과 SOT 사용처를 대조하며
+#     마스터에 없는 tag 사용 시 FAIL.
+#
+# 카테고리: thermal | vacuum | pressure | flow | gas | rf | hv | dose
+#           | chem | comm | recipe | mech | sensor
+# =============================================================================
+
+version: 1.0
+generated_for: "Hard VOC semantic retrieval — root cause tagging"
+
+tags:
+  # ---- thermal ----
+  - id: cooling_water_loss
+    name_ko: 냉각수 차단/누수
+    category: thermal
+  - id: cooling_water_flow_low
+    name_ko: 냉각수 유량 저하
+    category: thermal
+  - id: heater_short_circuit
+    name_ko: 히터 단락
+    category: thermal
+  - id: heater_open_circuit
+    name_ko: 히터 단선
+    category: thermal
+  - id: heater_overshoot
+    name_ko: 히터 over-shoot
+    category: thermal
+  - id: heater_output_low
+    name_ko: 히터 출력 저하
+    category: thermal
+  - id: thermocouple_aging
+    name_ko: TC(열전대) 노화
+    category: thermal
+  - id: thermocouple_response_delay
+    name_ko: TC 응답 지연
+    category: thermal
+  - id: insulation_damage
+    name_ko: 보온재/단열재 손상
+    category: thermal
+  - id: idle_cooling
+    name_ko: 유휴 상태 자연 냉각
+    category: thermal
+
+  # ---- pressure ----
+  - id: tm_valve_stuck
+    name_ko: TM(throttle) 밸브 고착
+    category: pressure
+  - id: pump_stopped
+    name_ko: 펌프 정지
+    category: pressure
+  - id: mfc_runaway
+    name_ko: MFC 폭주
+    category: pressure
+  - id: throttle_malfunction
+    name_ko: 배기 throttle 동작 불량
+    category: pressure
+  - id: gas_overinjection
+    name_ko: 가스 과주입
+    category: pressure
+  - id: gas_line_vibration
+    name_ko: 가스 라인 진동
+    category: pressure
+  - id: throttle_oscillation
+    name_ko: throttle 미세진동
+    category: pressure
+  - id: baratron_aging
+    name_ko: 바라트론(압력 센서) 노화
+    category: pressure
+
+  # ---- flow ----
+  - id: mfc_zero_drift
+    name_ko: MFC 영점 drift
+    category: flow
+  - id: valve_leak
+    name_ko: 밸브 누설
+    category: flow
+  - id: gas_cylinder_low
+    name_ko: 가스 잔량 부족
+    category: flow
+  - id: filter_clogged
+    name_ko: 필터 막힘
+    category: flow
+  - id: mfc_controller_aging
+    name_ko: MFC controller 노후
+    category: flow
+  - id: mfc_comm_delay
+    name_ko: MFC 통신 지연
+    category: flow
+  - id: gas_flow_insufficient
+    name_ko: 가스 유량 부족 (공정 영향)
+    category: flow
+
+  # ---- gas ----
+  - id: gas_line_leak
+    name_ko: 가스 배관 누설
+    category: gas
+  - id: vmb_valve_incomplete_close
+    name_ko: VMB 밸브 불완전 잠금
+    category: gas
+  - id: vcr_fitting_loose
+    name_ko: VCR fitting 풀림
+    category: gas
+  - id: gas_line_corrosion
+    name_ko: 가스 라인 부식
+    category: gas
+  - id: regulator_aging
+    name_ko: regulator 노후
+    category: gas
+  - id: cylinder_replacement_due
+    name_ko: 실린더 정기 교체 임박
+    category: gas
+
+  # ---- rf ----
+  - id: matcher_failure
+    name_ko: Matcher 단락/고장
+    category: rf
+  - id: electrode_contamination
+    name_ko: 전극 contamination
+    category: rf
+  - id: rf_generator_degradation
+    name_ko: RF Generator 출력 저하
+    category: rf
+  - id: cable_damage
+    name_ko: RF 케이블 손상
+    category: rf
+  - id: rf_load_fluctuation
+    name_ko: 부하 변동
+    category: rf
+  - id: tune_cap_aging
+    name_ko: tune cap 노후
+    category: rf
+  - id: matching_finetuning_insufficient
+    name_ko: 부하 매칭 미세조정 부족
+    category: rf
+
+  # ---- vacuum ----
+  - id: oring_damage
+    name_ko: O-ring 손상
+    category: vacuum
+  - id: viewport_crack
+    name_ko: viewport 균열
+    category: vacuum
+  - id: feedthrough_leak
+    name_ko: feedthrough 누설
+    category: vacuum
+  - id: pump_performance_degraded
+    name_ko: 펌프 성능 저하
+    category: vacuum
+  - id: chamber_outgassing
+    name_ko: 챔버 outgassing
+    category: vacuum
+  - id: pump_bearing_aging
+    name_ko: 터보펌프 베어링 노후
+    category: vacuum
+  - id: pump_cooling_water_temp_rise
+    name_ko: 펌프 냉각수 온도 상승
+    category: vacuum
+
+  # ---- hv ----
+  - id: arcing
+    name_ko: 고전압 arcing
+    category: hv
+  - id: ion_source_contamination
+    name_ko: 이온 소스 contamination
+    category: hv
+  - id: ps_ripple_increase
+    name_ko: power supply ripple 증가
+    category: hv
+  - id: cable_insulation_degraded
+    name_ko: HV 케이블 절연 열화
+    category: hv
+  - id: hv_ps_aging
+    name_ko: HV power supply 노후
+    category: hv
+
+  # ---- dose ----
+  - id: faraday_cup_contamination
+    name_ko: Faraday cup 오염
+    category: dose
+  - id: beam_profile_shift
+    name_ko: beam profile shift
+    category: dose
+  - id: beam_scan_drift
+    name_ko: beam scan profile drift
+    category: dose
+  - id: faraday_measurement_error
+    name_ko: Faraday 측정 오차
+    category: dose
+  - id: measurement_queue_backlog
+    name_ko: measurement queue 적체
+    category: dose
+
+  # ---- chem ----
+  - id: chemical_mixing_failure
+    name_ko: 케미컬 mixing 불량
+    category: chem
+  - id: chemical_usage_high
+    name_ko: 케미컬 사용량 증가
+    category: chem
+
+  # ---- comm ----
+  - id: network_switch_issue
+    name_ko: 네트워크 스위치 이슈
+    category: comm
+  - id: eap_process_hang
+    name_ko: EAP 프로세스 hang
+    category: comm
+  - id: host_load_high
+    name_ko: 호스트 load 증가
+    category: comm
+  - id: buffer_overflow
+    name_ko: 통신 buffer overflow
+    category: comm
+  - id: network_latency_minor
+    name_ko: 네트워크 미세 지연
+    category: comm
+  - id: daq_jitter
+    name_ko: DAQ 모듈 jitter
+    category: comm
+
+  # ---- recipe ----
+  - id: recipe_checksum_mismatch
+    name_ko: Recipe checksum 불일치
+    category: recipe
+  - id: permission_expired
+    name_ko: 권한 만료
+    category: recipe
+  - id: recipe_edit_error
+    name_ko: Recipe 편집 오류
+    category: recipe
+  - id: version_sync_delay
+    name_ko: 버전 동기화 지연
+    category: recipe
+
+  # ---- mech ----
+  - id: wafer_position_error
+    name_ko: wafer 위치 이상
+    category: mech
+  - id: vacuum_chuck_failure
+    name_ko: vacuum chuck 흡착 불량
+    category: mech
+  - id: pneumatic_pressure_low
+    name_ko: 공압 라인 압력 저하
+    category: mech
+  - id: bearing_wear
+    name_ko: 베어링 마모
+    category: mech
+
+  # ---- sensor (cross-cutting) ----
+  - id: sensor_miswiring
+    name_ko: 센서 오결선
+    category: sensor
+  - id: sensor_calibration_drift
+    name_ko: 센서 calibration 드리프트
+    category: sensor
+  - id: sensor_aging
+    name_ko: 센서 노후
+    category: sensor

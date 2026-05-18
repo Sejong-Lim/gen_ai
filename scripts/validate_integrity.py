@@ -31,7 +31,7 @@ validate_integrity.py — 전체 데이터 레이어 무결성 검증.
       D2. voc_samples 의 equipment_id / alarm_code 가 master 에 존재
          (단, difficulty=trap 인 경우는 의도적 미존재 — 검증 대상에서 제외)
       D3. voc_samples 의 user_id 가 master 에 존재
-      D4. 핵심 30건은 모두 difficulty 라벨 보유
+      D4. 핵심 VOC ≥ 30건이고 모두 정의된 difficulty 라벨 (easy/medium/hard/edge/trap/multi_turn)
 
   [E] 평가셋 ↔ 매뉴얼 citation 무결성
       E1. test_questions.gold_docs 가 매뉴얼 실존 anchor
@@ -41,6 +41,16 @@ validate_integrity.py — 전체 데이터 레이어 무결성 검증.
   [F] 분포 검증
       F1. 핵심 30건의 difficulty 분포: easy/medium/hard/edge/trap/multi_turn 모두 포함
       F2. VOC 전체 카테고리 분포가 0 이 아님
+
+  [G] 신규 확장 필드 무결성 (citation_display_name / root_cause_tags /
+      symptom_keywords / recommended_questions)
+      G1. citation_display_name 길이 ≤ 60 (WARN)
+      G2. root_cause_tags 의 모든 값이 taxonomies/root_cause_tags.yaml 에 존재 (FAIL)
+      G3. recommended_questions[].target_section_id 가 SOT 내 존재 (FAIL)
+      G4. recommended_questions[].target_intent 가 taxonomies/intents.yaml 에 존재 (FAIL)
+      G5. recommended_questions 각 엔트리는 target_section_id XOR target_intent (FAIL)
+      G6. alarm_codes 의 symptom_keywords 3 개 이상 (WARN, has_documented_action=true 한정)
+      G7. has_documented_action=false 인 alarm 은 root_cause_tags 면제
 
 종료 코드:
   0 — 통과 (warning 있어도 통과)
@@ -67,6 +77,9 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parent.parent
 SOT_PATH = ROOT / "data" / "_meta" / "source_of_truth.yaml"
+TAX_DIR = ROOT / "data" / "_meta" / "taxonomies"
+TAX_ROOT_CAUSE = TAX_DIR / "root_cause_tags.yaml"
+TAX_INTENTS = TAX_DIR / "intents.yaml"
 DB_DIR = ROOT / "data" / "db"
 VOC_PATH = ROOT / "data" / "voc" / "voc_samples.json"
 EVAL_DIR = ROOT / "data" / "evaluation"
@@ -392,10 +405,12 @@ def check_voc_citations(sot, rep):
             rep.fail("D3", f"VOC {v['voc_id']}.user_id={v['user_id']} not in master")
     rep.passed("D3")
 
-    # D4 핵심 30건의 difficulty 라벨
+    # D4 핵심 VOC 의 difficulty 라벨
+    #   - 최소 30건 (기존 손정의 30건)
+    #   - difficulty 는 정의된 6 종 라벨 중 하나
     core_count = sum(1 for v in voc_data["vocs"] if v.get("is_core"))
-    if core_count != 30:
-        rep.fail("D4", f"핵심 VOC 수 = {core_count}, 30 기대")
+    if core_count < 30:
+        rep.fail("D4", f"핵심 VOC 수 = {core_count}, 최소 30 기대")
     valid_diff = {"easy", "medium", "hard", "edge", "trap", "multi_turn"}
     for v in voc_data["vocs"]:
         if v.get("is_core") and v.get("difficulty") not in valid_diff:
@@ -453,13 +468,13 @@ def check_distribution(sot, rep):
     with open(VOC_PATH, "r", encoding="utf-8") as f:
         voc_data = json.load(f)
 
-    # F1 — 핵심 30건의 difficulty 모두 포함
+    # F1 — 핵심 VOC 에 6 difficulty 모두 포함
     core = [v for v in voc_data["vocs"] if v.get("is_core")]
     diffs = {v["difficulty"] for v in core}
     required = {"easy", "medium", "hard", "edge", "trap", "multi_turn"}
     missing = required - diffs
     if missing:
-        rep.fail("F1", f"핵심 30건에서 누락된 difficulty: {missing}")
+        rep.fail("F1", f"핵심 VOC 에서 누락된 difficulty: {missing}")
     rep.passed("F1")
 
     # F2 — VOC 전체 카테고리 분포
@@ -476,6 +491,133 @@ def check_distribution(sot, rep):
     rep.passed("F2")
 
 
+# =============================================================================
+# Check G — 신규 확장 필드 무결성
+# =============================================================================
+CITATION_DISPLAY_MAX = 60
+ALARM_SYMPTOM_MIN = 3
+
+
+def _load_taxonomies():
+    with open(TAX_ROOT_CAUSE, "r", encoding="utf-8") as f:
+        rc = yaml.safe_load(f)
+    with open(TAX_INTENTS, "r", encoding="utf-8") as f:
+        it = yaml.safe_load(f)
+    return (
+        {t["id"] for t in rc.get("tags", [])},
+        {i["id"] for i in it.get("intents", [])},
+    )
+
+
+def _all_section_ids(sot):
+    s = set()
+    for ac in sot["alarm_codes"]:
+        s.add(ac["section_id"])
+    for sp in sot["sops"]:
+        s.add(sp["section_id"])
+    for p in sot["policies"]:
+        s.add(p["section_id"])
+    for m in sot["manual_sections"]:
+        s.add(m["section_id"])
+    for fq in sot["faq_sections"]:
+        s.add(fq["section_id"])
+    return s
+
+
+def _entry_label(e, kind):
+    return e.get("code") or e.get("id") or e.get("section_id") or f"<{kind}>"
+
+
+def check_extension_fields(sot, rep):
+    print("\n[G] 신규 확장 필드 무결성")
+
+    try:
+        valid_tags, valid_intents = _load_taxonomies()
+    except FileNotFoundError as ex:
+        rep.fail("G0", f"taxonomy 파일을 찾을 수 없음: {ex}")
+        return
+
+    all_sections = _all_section_ids(sot)
+
+    groups = [
+        ("alarm", sot["alarm_codes"]),
+        ("sop", sot["sops"]),
+        ("policy", sot["policies"]),
+        ("faq", sot["faq_sections"]),
+        ("manual", sot["manual_sections"]),
+    ]
+
+    # G1 — citation_display_name 길이
+    for kind, entries in groups:
+        for e in entries:
+            cdn = e.get("citation_display_name")
+            if cdn and len(cdn) > CITATION_DISPLAY_MAX:
+                rep.warn(
+                    "G1",
+                    f"{kind} {_entry_label(e, kind)} citation_display_name 길이 "
+                    f"{len(cdn)} > {CITATION_DISPLAY_MAX}",
+                )
+    rep.passed("G1")
+
+    # G2 — root_cause_tags 마스터 검증 (alarm/sop)
+    for kind in ("alarm", "sop"):
+        entries = sot["alarm_codes"] if kind == "alarm" else sot["sops"]
+        for e in entries:
+            # G7: has_documented_action=false 인 alarm 은 면제
+            if kind == "alarm" and not e.get("has_documented_action", True):
+                continue
+            tags = e.get("root_cause_tags") or []
+            for t in tags:
+                if t not in valid_tags:
+                    rep.fail(
+                        "G2",
+                        f"{kind} {_entry_label(e, kind)}: root_cause_tag "
+                        f"'{t}' not in taxonomy",
+                    )
+    rep.passed("G2")
+
+    # G3/G4/G5 — recommended_questions 검증
+    for kind, entries in groups:
+        for e in entries:
+            rqs = e.get("recommended_questions") or []
+            for i, rq in enumerate(rqs):
+                tsi = rq.get("target_section_id")
+                tin = rq.get("target_intent")
+                label = f"{kind} {_entry_label(e, kind)}.rq[{i}]"
+                # G5: XOR
+                if bool(tsi) == bool(tin):
+                    rep.fail(
+                        "G5",
+                        f"{label}: target_section_id XOR target_intent 위반 "
+                        f"(section={tsi!r}, intent={tin!r})",
+                    )
+                    continue
+                # G3
+                if tsi and tsi not in all_sections:
+                    rep.fail("G3", f"{label}: target_section_id '{tsi}' 미존재")
+                # G4
+                if tin and tin not in valid_intents:
+                    rep.fail("G4", f"{label}: target_intent '{tin}' not in taxonomy")
+    rep.passed("G3")
+    rep.passed("G4")
+    rep.passed("G5")
+
+    # G6 — alarm symptom_keywords 최소 개수 (has_documented_action=true 한정)
+    for ac in sot["alarm_codes"]:
+        if not ac.get("has_documented_action", True):
+            continue
+        sym = ac.get("symptom_keywords") or []
+        if len(sym) < ALARM_SYMPTOM_MIN:
+            rep.warn(
+                "G6",
+                f"alarm {ac['code']} symptom_keywords {len(sym)} < {ALARM_SYMPTOM_MIN}",
+            )
+    rep.passed("G6")
+
+    # G7 — has_documented_action=false 면제 (위 G2에서 skip 처리됨)
+    rep.passed("G7")
+
+
 def main():
     rep = Report()
 
@@ -490,6 +632,7 @@ def main():
     check_voc_citations(sot, rep)
     check_eval_set(sot, rep)
     check_distribution(sot, rep)
+    check_extension_fields(sot, rep)
 
     sys.exit(rep.summary())
 
